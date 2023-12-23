@@ -1,6 +1,3 @@
-import os
-HOME = os.getcwd()
-
 from GroundingDINO.groundingdino.util.inference import Model
 import supervision as sv
 import cv2
@@ -26,7 +23,7 @@ BOX_THRESHOLD = 0.35
 TEXT_THRESHOLD = 0.25
 
 # load image
-image = cv2.imread(IMAGE_PATH)
+image = cv2.imread(IMAGE_PATH) # BGR 
 
 # detect objects
 detections = GD_model.predict_with_classes(
@@ -45,6 +42,5 @@ labels = [
     in detections]
 
 annotated_frame = box_annotator.annotate(scene=image.copy(), detections=detections, labels=labels)
-
-#%matplotlib inline
-sv.plot_image(annotated_frame, (16, 16))
+annotated_frame = annotated_frame[...,::-1] # BGR to RGB
+#annotated_frame= cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
