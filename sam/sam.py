@@ -59,9 +59,16 @@ def sam_point_input(sam_model_dict, image, input_points, **kwargs):
 def sam_box_input(sam_model_dict, image, input_boxes, **kwargs):
     return sam(sam_model_dict, image, input_boxes=input_boxes, **kwargs)
 
+def iou(mask, masks, eps=1e-6):
+    # mask: [h, w], masks: [n, h, w]
+    mask = mask[None].astype(bool)
+    masks = masks.astype(bool)
+    i = (mask & masks).sum(axis=(1,2))
+    u = (mask | masks).sum(axis=(1,2))
+    return i / (u + eps)
 def get_iou_with_resize(mask, masks, masks_shape):
     masks = np.array([cv2.resize(mask.astype(np.uint8) * 255, masks_shape[::-1], cv2.INTER_LINEAR).astype(bool) for mask in masks])
-    return utils.iou(mask, masks)
+    return iou(mask, masks)
 def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", discourage_mask_below_confidence=0.85, discourage_mask_below_coarse_iou=0.2, verbose=False):
     """masks: numpy bool array"""
     mask_sizes = masks.sum(axis=(1, 2))
@@ -167,6 +174,47 @@ def sam_refine_attn(sam_input_image, token_attn_np, model_dict, height, width, H
                                                          verbose=True)
 
     return mask_selected, conf_score_selected
+def sam_refine_box(sam_input_image, box, *args, **kwargs):
+    # One image with one box
+    
+    sam_input_images, boxes = [sam_input_image], [[box]]
+    mask_selected_batched_list, conf_score_selected_batched_list = sam_refine_boxes(sam_input_images, boxes, *args, **kwargs)
+
+    return mask_selected_batched_list[0][0], conf_score_selected_batched_list[0][0]
+
+def sam_refine_boxes(sam_input_images, boxes, model_dict, height, width, H, W, discourage_mask_below_confidence, discourage_mask_below_coarse_iou, verbose):
+    # (w, h)
+    input_boxes = [[utils.scale_proportion(box, H=height, W=width) for box in boxes_item] for boxes_item in boxes]
+
+    masks, conf_scores = sam_box_input(model_dict, image=sam_input_images, input_boxes=input_boxes, target_mask_shape=(H, W))
+    
+    mask_selected_batched_list, conf_score_selected_batched_list = [], []
+    
+    for boxes_item, masks_item in zip(boxes, masks):
+        mask_selected_list, conf_score_selected_list = [], []
+        for box, three_masks in zip(boxes_item, masks_item):
+            mask_binary = utils.proportion_to_mask(box, H, W, return_np=True)
+            if verbose >= 2:
+                # Also the box is the input for SAM
+                plt.title("Binary mask from input box (for iou)")
+                plt.imshow(mask_binary)
+                plt.show()
+            
+            coarse_ious = get_iou_with_resize(mask_binary, three_masks, masks_shape=mask_binary.shape)
+
+            mask_selected, conf_score_selected = select_mask(three_masks, conf_scores, coarse_ious=coarse_ious, 
+                                                                rule="largest_over_conf", 
+                                                                discourage_mask_below_confidence=discourage_mask_below_confidence, 
+                                                                discourage_mask_below_coarse_iou=discourage_mask_below_coarse_iou,
+                                                                verbose=True)
+
+            mask_selected_list.append(mask_selected)
+            conf_score_selected_list.append(conf_score_selected)
+        mask_selected_batched_list.append(mask_selected_list)
+        conf_score_selected_batched_list.append(conf_score_selected_list)
+    
+    return mask_selected_batched_list, conf_score_selected_batched_list
+
 
 def get_masked(image, label):
     sam_model_dict = load_sam()

@@ -542,6 +542,8 @@ class TextToVideoZeroPipeline(StableDiffusionPipeline):
         x_k_t1 = wrap(x_kprev_t1, motion_field_k_prev)*wrap()
         for frame_idx, x_2k_t0 in enumerate(x_2k_t0):
             for object_idx, 
+            
+            
         # Add motion in latents at time T_0
         x_2k_t0 = create_motion_field_and_warp_latents(
             motion_field_strength_x=motion_field_strength_x,

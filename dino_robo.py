@@ -38,9 +38,9 @@ print(detections)
 box_annotator = sv.BoxAnnotator()
 labels = [
     f"{CLASSES[class_id]} {confidence:0.2f}" 
-    for boxes, confidence, class_id, _ 
+    for boxes, mask, confidence, class_id, _ 
     in detections]
 
 annotated_frame = box_annotator.annotate(scene=image.copy(), detections=detections, labels=labels)
-annotated_frame = annotated_frame[...,::-1] # BGR to RGB
+annotated_frame = annotated_frame[...,::-1] # BGR to RGB image with boxes and labels
 #annotated_frame= cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
