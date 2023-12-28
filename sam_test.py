@@ -38,8 +38,10 @@ def load_model():
     return model_dict
 
 def get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.25):
-    IMAGE_PATH = "GroundingDINO/Image/spiderman.jpg"
-    CLASSES = ["spiderman", "surf board"]
+    #IMAGE_PATH = "GroundingDINO/Image/spiderman.jpg"
+    #CLASSES = ["spiderman", "surf board"]
+    IMAGE_PATH = image
+    CLASSES = class_name
     BOX_THRESHOLD = box_threshold
     TEXT_THRESHOLD = text_threshold
     # load image
