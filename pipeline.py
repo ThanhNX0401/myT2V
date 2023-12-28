@@ -15,6 +15,10 @@ from motion import create_motion_field_and_warp_latents
 from cross_attn import  CrossFrameAttnProcessor2_0
 from diffusers.utils import BaseOutput
 
+from gpt import get_motion
+from sam_test import get_mask
+
+
 def randn_tensor(
     shape: Union[Tuple, List],
     generator: Optional[Union[List["torch.Generator"], "torch.Generator"]] = None,
@@ -55,6 +59,7 @@ def randn_tensor(
         latents = torch.randn(shape, generator=generator, device=rand_device, dtype=dtype, layout=layout).to(device)
 
     return latents
+
 class TextToVideoPipelineOutput(BaseOutput): #ke thua BaseOutput
     r"""
     Output class for zero-shot text-to-video pipeline.
@@ -409,7 +414,33 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             extra_step_kwargs=extra_step_kwargs,
             num_warmup_steps=num_warmup_steps,
         )
-        scheduler_copy = copy.deepcopy(self.scheduler) 
+        scheduler_copy = copy.deepcopy(self.scheduler)
+        
+        self.timestep_counter = []
+        self.scheduler = scheduler_copy
+        X_0=self.backward_loop(
+            timesteps=timesteps[-t1 - 1 :],
+            prompt_embeds=prompt_embeds,
+            latents=latents,
+            guidance_scale=guidance_scale,
+            callback=callback,
+            callback_steps=callback_steps,
+            extra_step_kwargs=extra_step_kwargs,
+            num_warmup_steps=num_warmup_steps,
+        )
+        print("test start")
+        #print the type of X_0
+        print(type(X_0))
+        image = self.decode_latents(X_0) 
+        #print the type of image
+        print(type(image))
+        # get_label = get_label(prompt)
+        Object_motion = get_motion(image) #llava #Blip
+        mask = get_mask(image)
+        print(mask.shape, Object_motion)
+        print("test end")
+        
+        self.scheduler = scheduler_copy
         # Perform the second backward process up to time T_0
         x_1_t0 = self.backward_loop(
             timesteps=timesteps[-t1 - 1 : -t0 - 1],

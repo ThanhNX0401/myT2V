@@ -16,8 +16,7 @@ def process_text2video( input_prompt,
                         motion_field_strength_y,
                         t0,
                         t1):
-    gptPrompt = gpt.get_GPTprompt(input_prompt,video_length)
-    frame = pipe(   prompt=gptPrompt, 
+    frame = pipe(   prompt=input_prompt, 
                     generator=torch.Generator('cuda').manual_seed(seed),
                     video_length = video_length,
                     motion_field_strength_x = motion_field_strength_x,

@@ -1,19 +1,19 @@
 import openai
-import nltk
 import time
+import torch
+import requests
+from PIL import Image
+from transformers import BlipProcessor, BlipForQuestionAnswering
+
 # Initialize the client
-client = openai.OpenAI(api_key="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")
+client = openai.OpenAI(api_key="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")
 
-
-def paragraph_to_sentences(paragraph):
-    sentences = nltk.sent_tokenize(paragraph)
-    return sentences
-
-def get_GPTprompt(user_prompt="A panda is eating bamboo",video_length=4):
+ 
+def get_label(user_prompt):
     # Step 1: Create an Assistant
     assistant = client.beta.assistants.create(
         name="The Director",
-        instructions=f"You are a director for a short clip who write {video_length} sentences paragraph to the customers regarding the scene they want you to make",
+        instructions=f"Given a user prompt, identify the moving objects or parts. Skip the background object, give me the label of all the moving object only, don't answer anything else except the label",
         model="gpt-3.5-turbo"
     )
     # Step 2: Create a Thread
@@ -30,15 +30,7 @@ def get_GPTprompt(user_prompt="A panda is eating bamboo",video_length=4):
     run = client.beta.threads.runs.create(
         thread_id=thread.id,
         assistant_id=assistant.id,
-        instructions=f"""
-            You are a director for a short clip who write {video_length} sentences paragraph to the customers regarding the scene they want you to make. Follow the instructions listed below:
-            1. You have to identify the object, action of the given scene, visualize that action and write sentences describe it. The changing of motion in each sentences must be small.
-            2. Later sentence must have the given subject from previous sentence.
-            3. Be straightforward and do not use a narrative style, replace reflexive pronouns with their original vocabulary and eliminate the discourse cohesion while keeping the meaning the same.
-            4. You must not use pronouns "It","They","He","His","Its" and replace it with the subject directly.
-            5. Each sentence should be able to fully express all the visual information. Also, the linguistic structure of each sentence should be simple and similar.
-            6. Don't describe the input in the first sentences, don't add any thing else to the answer except the {video_length} sentences paragraph.
-            """
+        instructions=f"Given a user prompt, identify the moving objects or parts. Skip the background object, give me the label of all the moving object only, don't answer anything else except the label"
     )
 
 
@@ -61,18 +53,19 @@ def get_GPTprompt(user_prompt="A panda is eating bamboo",video_length=4):
             break
         
     prompt = messages.data[0].content[0].text.value
-    nltk.download('punkt')  # Make sure to download the punkt tokenizer data
+    print(prompt)
+    label_list = prompt.split(',')
+    return label_list
 
-    # Convert each sentence into a string element and save them in a list
-    sentences_list = paragraph_to_sentences(prompt)
-    if len(sentences_list) > video_length:
-      sentences_list = sentences_list[:video_length]
-      
-    elif len(sentences_list) < video_length:
-        last_sentence = sentences_list[-1]  # Get the last element of sentences_list
-        padding_length = video_length - len(sentences_list)
-        sentences_list += [last_sentence] * padding_length
-    # Print the result
-    print(sentences_list)
-    
-    return sentences_list
+def get_motion(image):
+    processor = BlipProcessor.from_pretrained("ybelkada/blip-vqa-capfilt-large")
+    model = BlipForQuestionAnswering.from_pretrained("ybelkada/blip-vqa-capfilt-large", torch_dtype=torch.float16).to("cuda")
+
+    question = "what is the direction of the main object in the image?"
+    inputs = processor(image, question, return_tensors="pt").to("cuda", torch.float16)
+
+    out = model.generate(**inputs)
+    print(processor.decode(out[0], skip_special_tokens=True))
+    motion = processor.decode(out[0], skip_special_tokens=True)
+    return motion
+

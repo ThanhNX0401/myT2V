@@ -15,6 +15,7 @@ import cv2
 
 from typing import List
 
+from gpt import get_label
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 CONFIG_PATH = "GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py" #unix path
@@ -70,17 +71,12 @@ def sam(model_dict, image, input_points=None, input_boxes=None, target_mask_shap
     """target_mask_shape: (h, w)"""
     sam_model, sam_processor = model_dict['sam_model'], model_dict['sam_processor']
     
-    if input_boxes:
-        # Convert tuple to list
-        input_boxes = [list(input_box) for input_box in input_boxes]
-        
-    
     with torch.no_grad():
-        with torch.autocast(device):
-            inputs = sam_processor(image, input_points=input_points, input_boxes=input_boxes, return_tensors="pt").to(device)
-            outputs = sam_model(**inputs)
+        #with torch.autocast(device):
+        inputs = sam_processor(image, input_points=input_points, input_boxes=[input_boxes], return_tensors="pt").to(device)
+        outputs = sam_model(**inputs)
         masks = sam_processor.image_processor.post_process_masks(
-            outputs.pred_masks.cpu().float(), inputs["original_sizes"].cpu(), inputs["reshaped_input_sizes"].cpu()
+        outputs.pred_masks.cpu().float(), inputs["original_sizes"].cpu(), inputs["reshaped_input_sizes"].cpu()
         )
         conf_scores = outputs.iou_scores.cpu().numpy()[0]
         del inputs, outputs
@@ -132,7 +128,7 @@ def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", 
 
     if verbose:
         # print(f"Confidences: {conf_scores}")
-        print(f"Selected a mask with confidence: {selection_conf}, coarse_iou: {selection_coarse_iou}")
+        print(f"Selected a mask with confidence: {selection_conf}") #, coarse_iou: {selection_coarse_iou}")
 
     if verbose >= 2:
         plt.figure(figsize=(10, 8))
@@ -140,7 +136,7 @@ def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", 
         for ind in range(3):
             plt.subplot(1, 3, ind+1)
             # This is obtained before resize.
-            plt.title(f"Mask {ind}, score {scores[ind]}, conf {conf_scores[ind]:.2f}, iou {coarse_ious[ind] if coarse_ious is not None else None:.2f}")
+            plt.title(f"Mask {ind}, score {scores[ind]}, conf {conf_scores[ind]:.2f}") #, iou {coarse_ious[ind] if coarse_ious is not None else None:.2f}")
             plt.imshow(masks[ind])
         plt.tight_layout()
         plt.show()
@@ -163,7 +159,9 @@ def get_mask(image, prompt):
         selected_scores_list.append(selected_scores)
     
     combined_mask = np.logical_or.reduce(selected_mask_list)
+    #plot the combined_mask
+    plt.imshow(combined_mask)
+    plt.show()
+    plt.close()
+    
     return combined_mask
-
-def get_label():
-    return "spiderman"
