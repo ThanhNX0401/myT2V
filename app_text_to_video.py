@@ -26,6 +26,7 @@ def process_text2video( input_prompt,
                     t0 = t0,
                     t1 = t1,
                 ).images
+    
     result = [(r * 255).astype("uint8") for r in frame]
     imageio.mimsave("output_video.mp4", result, fps=fps)
     return "output_video.mp4"
