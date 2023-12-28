@@ -3,7 +3,7 @@ import imageio
 import torch
 
 from pipeline import Pipeline
-import gpt
+
 
 
 pipe = Pipeline.from_pretrained("runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16).to("cuda")
@@ -16,6 +16,8 @@ def process_text2video( input_prompt,
                         motion_field_strength_y,
                         t0,
                         t1):
+    #turn input_prompt to a list of 8 duplicate input_prompt
+    input_prompt = [input_prompt]*8
     frame = pipe(   prompt=input_prompt, 
                     generator=torch.Generator('cuda').manual_seed(seed),
                     video_length = video_length,
