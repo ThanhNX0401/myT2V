@@ -428,6 +428,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             extra_step_kwargs=extra_step_kwargs,
             num_warmup_steps=num_warmup_steps,
         )
+        
         print("test start")
         #print the type of X_0
         print(type(X_0))
