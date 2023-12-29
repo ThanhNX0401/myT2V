@@ -361,7 +361,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             prompt = [prompt]
         if isinstance(negative_prompt, str):
             negative_prompt = [negative_prompt]
-
+        print(prompt)
         # Default height and width to unet
         height = height or self.unet.config.sample_size * self.vae_scale_factor #[256, 256]
         width = width or self.unet.config.sample_size * self.vae_scale_factor #[256, 256]
@@ -420,7 +420,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         self.scheduler = scheduler_copy
         X_0=self.backward_loop(
             timesteps=timesteps[-t1 - 1 :],
-            prompt_embeds=prompt_embeds,
+            prompt_embeds=prompt_embeds[0:2],
             latents=latents,
             guidance_scale=guidance_scale,
             callback=callback,
@@ -431,15 +431,25 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         
         print("test start")
         #print the type of X_0
-        print(type(X_0))
+        print(type(X_0)) #torch.tensor
         image = self.decode_latents(X_0) 
         #print the type of image
-        print(type(image))
+        print(type(image)) #numpy array
         # get_label = get_label(prompt)
         Object_motion = get_motion(image) #llava #Blip
-        mask = get_mask(image)
+        mask = get_mask(image,prompt[0])
         print(mask.shape, Object_motion)
         print("test end")
+        
+        #create a dictionary of motion with left, right, up, down as key and  each one will have (2,2) as value
+        motion_dict = {
+            'left': [2, 2],
+            'right': [2, 2],
+            'up': [2, 2],
+            'down': [2, 2]
+        }
+        
+         
         
         self.scheduler = scheduler_copy
         # Perform the second backward process up to time T_0

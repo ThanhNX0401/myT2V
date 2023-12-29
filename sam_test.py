@@ -40,13 +40,14 @@ def load_model():
 def get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.25):
     #IMAGE_PATH = "GroundingDINO/Image/spiderman.jpg"
     #CLASSES = ["spiderman", "surf board"]
-    IMAGE_PATH = image
+    image = (image * 255).astype(np.uint8) # BGR //need ndarray (512,512,3)
     CLASSES = class_name
     BOX_THRESHOLD = box_threshold
     TEXT_THRESHOLD = text_threshold
     # load image
-    image = cv2.imread(IMAGE_PATH) # BGR //need ndarray (512,512,3)
+    #image = cv2.imread(IMAGE_PATH) # BGR //need ndarray (512,512,3)
     # detect objects
+    
     GD_model = model_dict['GD_model']
     detections = GD_model.predict_with_classes(
         image=image,
@@ -147,7 +148,9 @@ def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", 
     return mask, selection_conf
 
 def get_mask(image, prompt):
+    print("get mask")
     model_dict = load_model()
+    image = image.squeeze()
     class_name = get_label(prompt)
     boxes=get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.25)
     target_mask_shape=(512,512)
@@ -161,9 +164,12 @@ def get_mask(image, prompt):
         selected_scores_list.append(selected_scores)
     
     combined_mask = np.logical_or.reduce(selected_mask_list)
+    print(combined_mask.shape)
     #plot the combined_mask
+    plt.figure(figsize=(10, 8))
     plt.imshow(combined_mask)
+    plt.tight_layout()
     plt.show()
-    plt.close()
+    # plt.close()
     
     return combined_mask

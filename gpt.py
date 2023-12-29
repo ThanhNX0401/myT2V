@@ -6,7 +6,7 @@ from PIL import Image
 from transformers import BlipProcessor, BlipForQuestionAnswering
 
 # Initialize the client
-client = openai.OpenAI(api_key="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")
+client = openai.OpenAI(api_key="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")
 
  
 def get_label(user_prompt):
@@ -62,7 +62,7 @@ def get_motion(image):
     model = BlipForQuestionAnswering.from_pretrained("ybelkada/blip-vqa-capfilt-large", torch_dtype=torch.float16).to("cuda")
 
     question = "what is the direction of the main object in the image?"
-    inputs = processor(image, question, return_tensors="pt").to("cuda", torch.float16)
+    inputs = processor(image, question, return_tensors="pt",do_rescale=False).to("cuda", torch.float16)
 
     out = model.generate(**inputs)
     print(processor.decode(out[0], skip_special_tokens=True))
