@@ -101,7 +101,7 @@ def sam_box_input(sam_model_dict, image, input_boxes, **kwargs):
     
     return sam(sam_model_dict, image, input_boxes=input_boxes, **kwargs)
 
-def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", discourage_mask_below_confidence=0.85, discourage_mask_below_coarse_iou=0.2, verbose=False):
+def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", discourage_mask_below_confidence=0.85, discourage_mask_below_coarse_iou=0.2, verbose=3):
     """masks: numpy bool array"""
     mask_sizes = masks.sum(axis=(1, 2))
     
