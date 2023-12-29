@@ -414,9 +414,9 @@ class TextToVideoZeroPipeline(StableDiffusionPipeline):
             extra_step_kwargs=extra_step_kwargs,
             num_warmup_steps=num_warmup_steps,
         )
-        image = self.decode_latents(X_0)
-        Object_label = get_motion(image) #llava
-        get_masked(X_0, Object_label)
+        # image = self.decode_latents(X_0)
+        # Object_label = get_motion(image) #llava
+        # get_masked(X_0, Object_label)
         
         # Perform the first backward process up to time T_1
         x_1_t1 = self.backward_loop(
@@ -540,8 +540,7 @@ class TextToVideoZeroPipeline(StableDiffusionPipeline):
             
         x_k_t1 = []
         x_k_t1 = wrap(x_kprev_t1, motion_field_k_prev)*wrap()
-        for frame_idx, x_2k_t0 in enumerate(x_2k_t0):
-            for object_idx, 
+
             
             
         # Add motion in latents at time T_0

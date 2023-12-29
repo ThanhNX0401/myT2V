@@ -122,7 +122,6 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             if hasattr(F, "scaled_dot_product_attention")
             else CrossFrameAttnProcessor(batch_size=2)
         )
-        self.timestep_counter = []
         self.unet.set_attn_processor(processor)
         
     def forward_loop(self, x_t0, t0, t1, generator):
@@ -265,8 +264,8 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         eta: float = 0.0,
         generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
         latents: Optional[torch.FloatTensor] = None,
-        motion_field_strength_x: float = 2, 
-        motion_field_strength_y: float = 2, 
+        motion_field_strength_x: float = 12, 
+        motion_field_strength_y: float = 12, 
         output_type: Optional[str] = "tensor",
         return_dict: bool = True,
         callback: Optional[Callable[[int, int, torch.FloatTensor], None]] = None,
@@ -353,7 +352,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             prompt = [prompt]
         if isinstance(negative_prompt, str):
             negative_prompt = [negative_prompt]
-        print(prompt)
+        print(prompt) #list
         # Default height and width to unet
         height = height or self.unet.config.sample_size * self.vae_scale_factor #[256, 256]
         width = width or self.unet.config.sample_size * self.vae_scale_factor #[256, 256]
@@ -362,7 +361,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         self.check_inputs(prompt, height, width, callback_steps)
 
         # Define call parameters
-        batch_size = 1 #z batch_size = 1 if isinstance(prompt, str) else len(prompt)
+        batch_size = 1 if isinstance(prompt, str) else len(prompt)
 
         device = self._execution_device
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
@@ -408,12 +407,12 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         )
         scheduler_copy = copy.deepcopy(self.scheduler)
         
-        self.timestep_counter = []
-        self.scheduler = scheduler_copy
+        # self.timestep_counter = []
+        # self.scheduler = scheduler_copy
         X_0=self.backward_loop(
             timesteps=timesteps[-t1 - 1 :],
             prompt_embeds=prompt_embeds,
-            latents=latents,
+            latents=x_1_t1,
             guidance_scale=guidance_scale,
             callback=callback,
             callback_steps=callback_steps,
@@ -429,7 +428,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         print(type(image)) #numpy array
         # get_label = get_label(prompt)
         Object_motion = get_motion(image) #llava #Blip
-        mask = get_mask(image,prompt)
+        mask = get_mask(image,prompt[0])
         print(mask.shape, Object_motion)
         print("test end")
         
