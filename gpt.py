@@ -6,7 +6,7 @@ from PIL import Image
 from transformers import BlipProcessor, BlipForQuestionAnswering
 
 # Initialize the client
-client = openai.OpenAI(api_key="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")
+client = openai.OpenAI(api_key=os.getenv('OPENAI_KEY'))
 
  
 def get_label(user_prompt):

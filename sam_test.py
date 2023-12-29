@@ -38,16 +38,18 @@ def load_model():
     return model_dict
 
 def get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.25):
-    #IMAGE_PATH = "GroundingDINO/Image/spiderman.jpg"
+    #IMAGE_PATH = "'output_image.png'"
     #CLASSES = ["spiderman", "surf board"]
-    image = (image * 255).astype(np.uint8) # BGR //need ndarray (512,512,3)
-    cv2.imwrite('output_image.png', image)
+    #image = (image * 255).astype(np.uint8) # BGR //need ndarray (512,512,3)
+    #cv2.imwrite('output_image.png', image)
     CLASSES = class_name
     BOX_THRESHOLD = box_threshold
     TEXT_THRESHOLD = text_threshold
     # load image
+    
     #image = cv2.imread(IMAGE_PATH) # BGR //need ndarray (512,512,3)
     # detect objects
+    print("test get box ", class_name, image.shape)
     
     GD_model = model_dict['GD_model']
     detections = GD_model.predict_with_classes(
@@ -56,7 +58,7 @@ def get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.
         box_threshold=BOX_THRESHOLD,
         text_threshold=TEXT_THRESHOLD
     )
-    # print(detections)
+    print(detections)
 
     # # annotate image with detections
     # box_annotator = sv.BoxAnnotator()
@@ -143,6 +145,7 @@ def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", 
             plt.title(f"Mask {ind}, score {scores[ind]}, conf {conf_scores[ind]:.2f}") #, iou {coarse_ious[ind] if coarse_ious is not None else None:.2f}")
             plt.imshow(masks[ind])
         plt.tight_layout()
+        plt.savefig('masks.png')
         plt.show()
         plt.close()
 
@@ -151,7 +154,12 @@ def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", 
 def get_mask(image, prompt):
     print("get mask")
     model_dict = load_model()
+    
     image = image.squeeze()
+    image = (image * 255).astype(np.uint8)
+    cv2.imwrite('output_image.png', image)
+    image = cv2.imread("output_image.png")
+    
     class_name = get_label(prompt)
     boxes=get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.25)
     # check if boxes=[] then assgin boxes = [[0,0,0,0]]
@@ -159,6 +167,8 @@ def get_mask(image, prompt):
         boxes=[[0,0,0,0]]
     target_mask_shape=(512,512)
     masks, conf_scores = sam_box_input(model_dict, image, input_boxes=boxes, target_mask_shape=target_mask_shape, return_numpy=True)
+    
+    print("masks, conf_score", masks[0].shape, conf_scores.shape)
     
     selected_mask_list=[]
     selected_scores_list=[]
