@@ -10,9 +10,9 @@ import torch.nn.functional as F
 from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline, StableDiffusionSafetyChecker
-from diffusers.schedulers import DDIMScheduler
+from diffusers.schedulers import KarrasDiffusionSchedulers
 from motion import create_motion_field_and_warp_latents
-from cross_attn import  CrossFrameAttnProcessor2_0
+from cross_attn import  CrossFrameAttnProcessor2_0, CrossFrameAttnProcessor
 from diffusers.utils import BaseOutput
 
 from gpt import get_motion
@@ -109,30 +109,22 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         text_encoder: CLIPTextModel,
         tokenizer: CLIPTokenizer,
         unet: UNet2DConditionModel,
-        scheduler: DDIMScheduler,
+        scheduler: KarrasDiffusionSchedulers,
         safety_checker: StableDiffusionSafetyChecker,
         feature_extractor: CLIPImageProcessor,
         requires_safety_checker: bool = True,
-        all_attn: bool = False,
-        rot_attn: bool = True,
     ):
         super().__init__(
             vae, text_encoder, tokenizer, unet, scheduler, safety_checker, feature_extractor, requires_safety_checker
         )
-        if not all_attn:
-            attn_processors = self.unet.attn_processors  
-            for proc_key in attn_processors.keys(): 
-                if proc_key.startswith('up_blocks.2') or proc_key.startswith('up_blocks.3'):
-                    self.timestep_counter = []
-                    attn_processors[proc_key] =  (
-                        CrossFrameAttnProcessor2_0(self, batch_size=2, rot_attn=rot_attn)
-                    )
-            self.unet.set_attn_processor(attn_processors)
-        else:
-            self.timestep_counter = []
-            self.unet.set_attn_processor(
-                CrossFrameAttnProcessor2_0(self, batch_size=2, rot_attn=rot_attn)
-            )
+        processor = (
+            CrossFrameAttnProcessor2_0(batch_size=2)
+            if hasattr(F, "scaled_dot_product_attention")
+            else CrossFrameAttnProcessor(batch_size=2)
+        )
+        self.timestep_counter = []
+        self.unet.set_attn_processor(processor)
+        
     def forward_loop(self, x_t0, t0, t1, generator):
         """
         Perform DDPM forward process from time t0 to t1. This is the same as adding noise with corresponding variance.
@@ -266,8 +258,8 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         video_length: Optional[int] = 8,
         height: Optional[int] = None,
         width: Optional[int] = None,
-        num_inference_steps: int = 100, 
-        guidance_scale: float = 12.0, 
+        num_inference_steps: int = 50, 
+        guidance_scale: float = 7.5, 
         negative_prompt: Optional[Union[str, List[str]]] = None,
         num_videos_per_prompt: Optional[int] = 1,
         eta: float = 0.0,
@@ -279,8 +271,8 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         return_dict: bool = True,
         callback: Optional[Callable[[int, int, torch.FloatTensor], None]] = None,
         callback_steps: Optional[int] = 1,
-        t0: int = 91, 
-        t1: int = 96, 
+        t0: int = 44, 
+        t1: int = 47, 
         frame_ids: Optional[List[int]] = None,
     ):
         """
@@ -406,7 +398,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         # Perform the first backward process up to time T_1
         x_1_t1 = self.backward_loop(
             timesteps=timesteps[: -t1 - 1],
-            prompt_embeds=prompt_embeds[0:2 if do_classifier_free_guidance else 0],
+            prompt_embeds=prompt_embeds,
             latents=latents,
             guidance_scale=guidance_scale,
             callback=callback,
@@ -420,7 +412,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         self.scheduler = scheduler_copy
         X_0=self.backward_loop(
             timesteps=timesteps[-t1 - 1 :],
-            prompt_embeds=prompt_embeds[0:2],
+            prompt_embeds=prompt_embeds,
             latents=latents,
             guidance_scale=guidance_scale,
             callback=callback,
@@ -437,7 +429,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         print(type(image)) #numpy array
         # get_label = get_label(prompt)
         Object_motion = get_motion(image) #llava #Blip
-        mask = get_mask(image,prompt[0])
+        mask = get_mask(image,prompt)
         print(mask.shape, Object_motion)
         print("test end")
         
@@ -455,7 +447,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         # Perform the second backward process up to time T_0
         x_1_t0 = self.backward_loop(
             timesteps=timesteps[-t1 - 1 : -t0 - 1],
-            prompt_embeds=prompt_embeds[0:2 if do_classifier_free_guidance else 0],
+            prompt_embeds=prompt_embeds,
             latents=x_1_t1,
             guidance_scale=guidance_scale,
             callback=callback,
@@ -486,7 +478,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         # Perform backward process from time T_1 to 0
         x_1k_t1 = torch.cat([x_1_t1, x_2k_t1])
         b, l, d = prompt_embeds.size()
-
+        prompt_embeds = prompt_embeds[:, None].repeat(1, video_length, 1, 1).reshape(b * video_length, l, d) #prompt_embeds[:, None] -- : la 1 dimension, nen:, None se new dimension 2
 
         self.timestep_counter = []
         self.scheduler = scheduler_copy

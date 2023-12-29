@@ -16,8 +16,6 @@ def process_text2video( input_prompt,
                         motion_field_strength_y,
                         t0,
                         t1):
-    #turn input_prompt to a list of 8 duplicate input_prompt
-    input_prompt = [input_prompt]*8
     frame = pipe(   prompt=input_prompt, 
                     generator=torch.Generator('cuda').manual_seed(seed),
                     video_length = video_length,
@@ -70,12 +68,12 @@ def create_demo_text_to_video():
                     value=2,
                     step=1)
                 t0 = gr.Slider(label="Timestep t0", minimum=0,
-                                maximum=98, value=44, step=1,
+                                maximum=50, value=44, step=1,
                                 info="Perform DDPM steps from t0 to t1. The larger the gap between t0 and t1, the more variance between the frames. Ensure t0 < t1 ",
                                 )
                 t1 = gr.Slider(label="Timestep t1", minimum=1,
                                 info="Perform DDPM steps from t0 to t1. The larger the gap between t0 and t1, the more variance between the frames. Ensure t0 < t1",
-                                maximum=99, value=47, step=1)
+                                maximum=50, value=47, step=1)
                 run_button = gr.Button('Run')
             with gr.Column():
                 result = gr.Video(label="Generated Video")

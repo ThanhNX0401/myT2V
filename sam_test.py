@@ -41,6 +41,7 @@ def get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.
     #IMAGE_PATH = "GroundingDINO/Image/spiderman.jpg"
     #CLASSES = ["spiderman", "surf board"]
     image = (image * 255).astype(np.uint8) # BGR //need ndarray (512,512,3)
+    cv2.imwrite('output_image.png', image)
     CLASSES = class_name
     BOX_THRESHOLD = box_threshold
     TEXT_THRESHOLD = text_threshold
@@ -153,6 +154,9 @@ def get_mask(image, prompt):
     image = image.squeeze()
     class_name = get_label(prompt)
     boxes=get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.25)
+    # check if boxes=[] then assgin boxes = [[0,0,0,0]]
+    if boxes==[]:
+        boxes=[[0,0,0,0]]
     target_mask_shape=(512,512)
     masks, conf_scores = sam_box_input(model_dict, image, input_boxes=boxes, target_mask_shape=target_mask_shape, return_numpy=True)
     
@@ -168,6 +172,7 @@ def get_mask(image, prompt):
     #plot the combined_mask
     plt.figure(figsize=(10, 8))
     plt.imshow(combined_mask)
+    plt.savefig('combined_mask.png')
     plt.tight_layout()
     plt.show()
     # plt.close()

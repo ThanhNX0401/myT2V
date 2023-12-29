@@ -33,7 +33,7 @@ def get_label(user_prompt):
         instructions=f"Given a user prompt, identify the moving objects or parts. Skip the background object, give me the label of all the moving object only, don't answer anything else except the label"
     )
 
-
+    print("while")
     while True:
         # Wait for 5 seconds
         time.sleep(1)  
@@ -51,18 +51,19 @@ def get_label(user_prompt):
             )
 
             break
-        
+    print("out")
     prompt = messages.data[0].content[0].text.value
-    print(prompt)
     label_list = prompt.split(',')
+    print(prompt, label_list)
     return label_list
 
 def get_motion(image):
+    print("get motion")
     processor = BlipProcessor.from_pretrained("ybelkada/blip-vqa-capfilt-large")
     model = BlipForQuestionAnswering.from_pretrained("ybelkada/blip-vqa-capfilt-large", torch_dtype=torch.float16).to("cuda")
 
     question = "what is the direction of the main object in the image?"
-    inputs = processor(image, question, return_tensors="pt",do_rescale=False).to("cuda", torch.float16)
+    inputs = processor(image, question, return_tensors="pt").to("cuda", torch.float16)
 
     out = model.generate(**inputs)
     print(processor.decode(out[0], skip_special_tokens=True))
