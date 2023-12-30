@@ -155,16 +155,15 @@ def get_mask(image, prompt):
     print("get mask")
     model_dict = load_model()
     
-    image = image.squeeze()
+    image = image.squeeze() # (512,512,3)
     image = (image * 255).astype(np.uint8)
     cv2.imwrite('output_image.png', image)
-    image = cv2.imread("output_image.png")
     
     class_name = get_label(prompt)
     boxes=get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.25)
-    # check if boxes=[] then assgin boxes = [[0,0,0,0]]
+    # check if boxes=[] then assign boxes = image resolution
     if boxes==[]:
-        boxes=[[0,0,0,0]]
+        boxes=[[0,0,512,512]]
     target_mask_shape=(512,512)
     masks, conf_scores = sam_box_input(model_dict, image, input_boxes=boxes, target_mask_shape=target_mask_shape, return_numpy=True)
     
@@ -176,15 +175,14 @@ def get_mask(image, prompt):
         selected_mask, selected_scores = select_mask(masks[0][idx],conf_scores[idx])
         selected_mask_list.append(selected_mask)
         selected_scores_list.append(selected_scores)
-    
     combined_mask = np.logical_or.reduce(selected_mask_list)
+    
+    combined_mask = (combined_mask * 255).astype(np.uint8)
+    cv2.imwrite('mask1.png', combined_mask)
     print(combined_mask.shape)
     #plot the combined_mask
     plt.figure(figsize=(10, 8))
     plt.imshow(combined_mask)
     plt.savefig('combined_mask.png')
-    plt.tight_layout()
-    plt.show()
-    # plt.close()
-    
+
     return combined_mask

@@ -6,6 +6,7 @@ import numpy as np
 import PIL
 import torch
 import torch.nn.functional as F
+from torchvision import transforms
 
 from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
@@ -148,7 +149,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         x_t1 = torch.sqrt(alpha_vec) * x_t0 + torch.sqrt(1 - alpha_vec) * eps
         return x_t1
 
-    def backward_loop(
+    def backward_loop( #DDPM backward process
         self,
         latents,
         timesteps,
@@ -428,20 +429,22 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         print(type(image)) #numpy array
         # get_label = get_label(prompt)
         Object_motion = get_motion(image) #llava #Blip
-        mask = get_mask(image,prompt[0])
+        mask = get_mask(image,prompt[0]) #mask.shape = (512,512)
         print(mask.shape, Object_motion)
         print("test end")
         
         #create a dictionary of motion with left, right, up, down as key and  each one will have (2,2) as value
         motion_dict = {
-            'left': [2, 2],
-            'right': [2, 2],
-            'up': [2, 2],
-            'down': [2, 2]
+            'left': [20, 20],
+            'right': [20, 20],
+            'up': [20, 20],
+            'down': [20, 20]
         }
         
+        #write me the code to apply resize the mask to h and w of x_1_t1 and apply dilation
+        mask = torch.from_numpy(mask)[None, None]
+        m_0 = transforms.Resize(size=(64, 64), interpolation=transforms.InterpolationMode.NEAREST)(mask)
          
-        
         self.scheduler = scheduler_copy
         # Perform the second backward process up to time T_0
         x_1_t0 = self.backward_loop(
@@ -458,6 +461,8 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         # Propagate first frame latents at time T_0 to remaining frames
         x_2k_t0 = x_1_t0.repeat(video_length - 1, 1, 1, 1)
 
+        
+        
         # Add motion in latents at time T_0
         x_2k_t0 = create_motion_field_and_warp_latents(
             motion_field_strength_x=motion_field_strength_x,

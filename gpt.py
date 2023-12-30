@@ -4,7 +4,7 @@ import torch
 import requests
 from PIL import Image
 from transformers import BlipProcessor, BlipForQuestionAnswering
-
+import os
 # Initialize the client
 client = openai.OpenAI(api_key=os.getenv('OPENAI_KEY'))
 
