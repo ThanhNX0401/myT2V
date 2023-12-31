@@ -24,6 +24,34 @@ def coords_grid(batch, ht, wd, device):
     #
     return coords[None].repeat(batch, 1, 1, 1) # (b, 2, h, w)
 
+def warp_mask_latent(latent, reference_flow):
+    """
+    Warp latent of a single frame with given flow
+
+    Args:
+        latent: latent code of a single frame
+        reference_flow: flow which to warp the latent with
+
+    Returns:
+        warped: warped latent
+    """
+    _, _, H, W = reference_flow.size()
+    _, _, h, w = latent.size()
+    coords0 = coords_grid(1, H, W, device=latent.device).to(latent.dtype) # (1, 2, H, W)
+
+    coords_t0 = coords0 + reference_flow # (1, 2, H, W)
+    coords_t0 = coords_t0.float() # Convert to float for division
+    coords_t0[:, 0] /= W                # normalize
+    coords_t0[:, 1] /= H
+
+    coords_t0 = coords_t0 * 2.0 - 1.0 # to [-1, 1]
+    coords_t0 = F.interpolate(coords_t0, size=(h, w), mode="bilinear") #resize to (64,64)
+    coords_t0 = torch.permute(coords_t0, (0, 2, 3, 1)) # (1, 64, 64, 2)
+
+    warped_float = F.grid_sample(latent.float(), coords_t0, mode="nearest", padding_mode="reflection") # (1, 4, 64, 64)
+    warped = (warped_float > 0.5).byte() # Convert back to ByteTensor
+
+    return warped
 
 def warp_single_latent(latent, reference_flow):
     """
@@ -95,6 +123,10 @@ def create_motion_field_and_warp_latents(motion_field_strength_x, motion_field_s
         device=latents.device,
         dtype=latents.dtype,
     )
-    warped_latents = latents.clone().detach() # latents: [7,4,64,64], detach =  don't want to compute gradients
-    warped_latents = warp_single_latent(latents, motion_field)
+    warped_latents = latents.clone().detach()# latents: [7,4,64,64], detach =  don't want to compute gradients
+    #check the second dimension of warped_latents is 4 or not
+    if warped_latents.size(1) == 4:
+        warped_latents = warp_single_latent(latents, motion_field)
+    else:
+        warped_latents = warp_mask_latent(latents, motion_field)
     return warped_latents
