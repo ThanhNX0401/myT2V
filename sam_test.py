@@ -170,12 +170,12 @@ def get_mask(image, prompt):
     print("masks, conf_score", masks[0].shape, conf_scores.shape)
     
     selected_mask_list=[]
-    selected_scores_list=[]
+    #selected_scores_list=[]
     for idx in range(len(masks[0])):
         selected_mask, selected_scores = select_mask(masks[0][idx],conf_scores[idx])
         selected_mask_list.append(selected_mask)
-        selected_scores_list.append(selected_scores)
-    combined_mask = np.logical_or.reduce(selected_mask_list)
+        #selected_scores_list.append(selected_scores)
+    combined_mask = np.logical_or.reduce(selected_mask_list) #only 1 mask
     
     combined_mask = (combined_mask * 255).astype(np.uint8)
     cv2.imwrite('mask1.png', combined_mask)

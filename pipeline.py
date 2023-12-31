@@ -434,17 +434,23 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         print("test end")
         
         #create a dictionary of motion with left, right, up, down as key and  each one will have (2,2) as value
-        motion_dict = {
-            'left': [20, 20],
-            'right': [20, 20],
-            'up': [20, 20],
-            'down': [20, 20]
+        motion_field_dict = {
+            'left': [-20, 0], #object moving right, pixel motion field is left
+            'right': [20, 0],
+            'up': [0, -20],
+            'down': [0, 20],
+            'left_up': [-20, -20],
+            'left_down': [-20, 20],
+            'right_up': [20, -20],
+            'right_down': [20, 20],
         }
         
+        motion_field_strength_x, motion_field_strength_y = motion_field_dict[Object_motion]
         #write me the code to apply resize the mask to h and w of x_1_t1 and apply dilation
         mask = torch.from_numpy(mask)[None, None]
         m_0 = transforms.Resize(size=(64, 64), interpolation=transforms.InterpolationMode.NEAREST)(mask)
-         
+        #dilaion??
+        
         self.scheduler = scheduler_copy
         # Perform the second backward process up to time T_0
         x_1_t0 = self.backward_loop(
@@ -459,44 +465,68 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         )
 
         # Propagate first frame latents at time T_0 to remaining frames
-        x_2k_t0 = x_1_t0.repeat(video_length - 1, 1, 1, 1)
-
+        #x_2k_t0 = x_1_t0.repeat(video_length-1, 1, 1, 1)
+         
+        # x_k_t0= x_1_t0.repeat(video_length, 1, 1, 1) #create 8 frames
+        # m_k_t0= m_0.repeat(video_length, 1, 1, 1) #create 8 frames
         
+        x_k_t0 = [x_1_t0 for _ in range(video_length)]
+        m_k_t0 = [m_0 for _ in range(video_length)]
+        #warp mask  
+        for k in range(1, video_length):
+            x_k_1_warp = create_motion_field_and_warp_latents(
+                motion_field_strength_x=motion_field_strength_x,
+                motion_field_strength_y=motion_field_strength_y,
+                latents=x_k_t0[k-1]
+            )
+            
+            m_k_1 =m_k_t0[0] if k==1 else create_motion_field_and_warp_latents(
+                motion_field_strength_x=motion_field_strength_x,
+                motion_field_strength_y=motion_field_strength_y,
+                latents=m_k_t0[k-2]
+            )
+            m_k_t0[k-1] = m_k_1 
+            m_hat_k_1 = create_motion_field_and_warp_latents(
+                motion_field_strength_x= -motion_field_strength_x,
+                motion_field_strength_y= -motion_field_strength_y,
+                latents=m_k_t0[k-1]
+            )
+            m_tot_k_1=create_motion_field_and_warp_latents(
+                motion_field_strength_x=motion_field_strength_x,
+                motion_field_strength_y=motion_field_strength_y,
+                latents=m_k_1 + m_hat_k_1
+            )
+            m_BG_tot_k_1 = 1 - m_tot_k_1
+            x_k_t0[k]=x_k_1_warp * m_tot_k_1 + x_k_t0[k-1] * m_BG_tot_k_1
         
-        # Add motion in latents at time T_0
-        x_2k_t0 = create_motion_field_and_warp_latents(
-            motion_field_strength_x=motion_field_strength_x,
-            motion_field_strength_y=motion_field_strength_y,
-            latents=x_2k_t0,
-            frame_ids=frame_ids[1:],
-        )
+        del m_k_t0
+        x_k_t0 = torch.stack(x_k_t0) 
 
         # Perform forward process up to time T_1
-        x_2k_t1 = self.forward_loop(
-            x_t0=x_2k_t0,
+        x_k_t1 = self.forward_loop(
+            x_t0=x_k_t0,
             t0=timesteps[-t0 - 1].item(),
             t1=timesteps[-t1 - 1].item(),
             generator=generator,
         )
 
         # Perform backward process from time T_1 to 0
-        x_1k_t1 = torch.cat([x_1_t1, x_2k_t1])
         b, l, d = prompt_embeds.size()
         prompt_embeds = prompt_embeds[:, None].repeat(1, video_length, 1, 1).reshape(b * video_length, l, d) #prompt_embeds[:, None] -- : la 1 dimension, nen:, None se new dimension 2
 
         self.timestep_counter = []
         self.scheduler = scheduler_copy
-        x_1k_0 = self.backward_loop(
+        x_k_0 = self.backward_loop(
             timesteps=timesteps[-t1 - 1 :],
             prompt_embeds=prompt_embeds,
-            latents=x_1k_t1,
+            latents=x_k_t1,
             guidance_scale=guidance_scale,
             callback=callback,
             callback_steps=callback_steps,
             extra_step_kwargs=extra_step_kwargs,
             num_warmup_steps=0,
         )
-        latents = x_1k_0
+        latents = x_k_0
 
         # manually for max memory savings
         if hasattr(self, "final_offload_hook") and self.final_offload_hook is not None:

@@ -59,7 +59,7 @@ def get_label(user_prompt):
 
 def get_motion(image):
     print("get motion")
-    processor = BlipProcessor.from_pretrained("ybelkada/blip-vqa-capfilt-large")
+    processor = BlipProcessor.from_pretrained("ybelkada/blip-vqa-capfilt-large",do_rescale=False)
     model = BlipForQuestionAnswering.from_pretrained("ybelkada/blip-vqa-capfilt-large", torch_dtype=torch.float16).to("cuda")
 
     question = "what is the direction of the main object in the image?"
