@@ -445,12 +445,12 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             'right_down': [20, 20],
         }
         
-        motion_field_strength_x, motion_field_strength_y = motion_field_dict[Object_motion]
+        motion_field_strength_x, motion_field_strength_y = motion_field_dict.get(Object_motion, motion_field_dict['right_down'])
         #write me the code to apply resize the mask to h and w of x_1_t1 and apply dilation
         mask = torch.from_numpy(mask)[None, None]
         m_0 = transforms.Resize(size=(64, 64), interpolation=transforms.InterpolationMode.NEAREST)(mask)
         #dilaion??
-        
+        m_0 = m_0.to(x_1_t1.device) # dtype=torch.uint8
         self.scheduler = scheduler_copy
         # Perform the second backward process up to time T_0
         x_1_t0 = self.backward_loop(
@@ -498,9 +498,9 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             )
             m_BG_tot_k_1 = 1 - m_tot_k_1
             x_k_t0[k]=x_k_1_warp * m_tot_k_1 + x_k_t0[k-1] * m_BG_tot_k_1
-        
+
         del m_k_t0
-        x_k_t0 = torch.stack(x_k_t0) 
+        x_k_t0 = torch.stack(x_k_t0).squeeze() 
 
         # Perform forward process up to time T_1
         x_k_t1 = self.forward_loop(
