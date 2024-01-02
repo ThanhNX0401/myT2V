@@ -451,6 +451,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         m_0 = transforms.Resize(size=(64, 64), interpolation=transforms.InterpolationMode.NEAREST)(mask)
         #dilaion??
         m_0 = m_0.to(x_1_t1.device) # dtype=torch.uint8
+        m_0 = (m_0 > 0.5).to(x_1_t1.dtype)
         self.scheduler = scheduler_copy
         # Perform the second backward process up to time T_0
         x_1_t0 = self.backward_loop(

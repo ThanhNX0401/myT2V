@@ -40,7 +40,7 @@ def warp_mask_latent(latent, reference_flow):
     coords0 = coords_grid(1, H, W, device=latent.device).to(latent.dtype) # (1, 2, H, W)
 
     coords_t0 = coords0 + reference_flow # (1, 2, H, W)
-    coords_t0 = coords_t0.float() # Convert to float for division
+    #coords_t0 = coords_t0.float() # Convert to float for division
     coords_t0[:, 0] /= W                # normalize
     coords_t0[:, 1] /= H
 
@@ -48,8 +48,8 @@ def warp_mask_latent(latent, reference_flow):
     coords_t0 = F.interpolate(coords_t0, size=(h, w), mode="bilinear") #resize to (64,64)
     coords_t0 = torch.permute(coords_t0, (0, 2, 3, 1)) # (1, 64, 64, 2)
 
-    warped_float = F.grid_sample(latent.float(), coords_t0, mode="nearest", padding_mode="reflection") # (1, 4, 64, 64)
-    warped = (warped_float > 0.5).byte() # Convert back to ByteTensor
+    warped = F.grid_sample(latent, coords_t0, mode="nearest", padding_mode="reflection") # (1, 4, 64, 64)
+    warped = (warped > 0.5).to(latent.dtype) # Convert back to ByteTensor
 
     return warped
 

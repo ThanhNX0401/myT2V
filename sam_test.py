@@ -176,8 +176,13 @@ def get_mask(image, prompt):
         selected_mask_list.append(selected_mask)
         #selected_scores_list.append(selected_scores)
     combined_mask = np.logical_or.reduce(selected_mask_list) #only 1 mask
-    
+    print("combine mask")
+    has_different_value = ((combined_mask != 0) & (combined_mask != 1)).any()
+    print(has_different_value.item())
     combined_mask = (combined_mask * 255).astype(np.uint8)
+    print("combine mask1")
+    has_different_value = ((combined_mask != 0) & (combined_mask != 1)).any()
+    print(has_different_value.item())
     cv2.imwrite('mask1.png', combined_mask)
     print(combined_mask.shape)
     #plot the combined_mask
