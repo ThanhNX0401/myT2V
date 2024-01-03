@@ -19,6 +19,8 @@ from diffusers.utils import BaseOutput
 from gpt import get_motion
 from sam_test import get_mask
 
+import matplotlib.pyplot as plt
+from kornia.morphology import dilation
 
 def randn_tensor(
     shape: Union[Tuple, List],
@@ -118,11 +120,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         super().__init__(
             vae, text_encoder, tokenizer, unet, scheduler, safety_checker, feature_extractor, requires_safety_checker
         )
-        processor = (
-            CrossFrameAttnProcessor2_0(batch_size=2)
-            if hasattr(F, "scaled_dot_product_attention")
-            else CrossFrameAttnProcessor(batch_size=2)
-        )
+        processor = CrossFrameAttnProcessor2_0(batch_size=2)
         self.unet.set_attn_processor(processor)
         
     def forward_loop(self, x_t0, t0, t1, generator):
@@ -447,12 +445,21 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         
         motion_field_strength_x, motion_field_strength_y = motion_field_dict.get(Object_motion, motion_field_dict['right_down'])
         #write me the code to apply resize the mask to h and w of x_1_t1 and apply dilation
-        mask = torch.from_numpy(mask)[None, None]
-        m_0 = transforms.Resize(size=(64, 64), interpolation=transforms.InterpolationMode.NEAREST)(mask)
+        mask = torch.from_numpy(mask)[None, None].to(x_1_t1.device).to(x_1_t1.dtype)
+        mask = transforms.Resize(size=(64, 64), interpolation=transforms.InterpolationMode.NEAREST)(mask)
         #dilaion??
-        m_0 = m_0.to(x_1_t1.device) # dtype=torch.uint8
+        kernel = torch.ones(5, 5, device=x_1_t1.device, dtype=x_1_t1.dtype)
+        mask = dilation(mask, kernel)[0]
+        #m_0 = m_0.to(x_1_t1.device) # dtype=torch.uint8
+        m_0 = mask[None]
         m_0 = (m_0 > 0.5).to(x_1_t1.dtype)
-        self.scheduler = scheduler_copy
+        
+        # tensor = m_0.cpu().squeeze()  # Remove the batch and channel dimensions
+        # plt.figure(figsize=(20,20))
+        # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
+        # plt.savefig(f'm0.png')
+        # self.scheduler = scheduler_copy
+        
         # Perform the second backward process up to time T_0
         x_1_t0 = self.backward_loop(
             timesteps=timesteps[-t1 - 1 : -t0 - 1],
@@ -480,26 +487,82 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
                 motion_field_strength_y=motion_field_strength_y,
                 latents=x_k_t0[k-1]
             )
+            # tensor = x_k_1_warp.cpu().squeeze()  # Remove the batch dimension
+            # fig, axs = plt.subplots(1, 4, figsize=(80, 20))
+            # for i in range(tensor.shape[0]):
+            #     axs[i].imshow(tensor[i], cmap='cool')  # Plot each 64x64 image
+            # plt.savefig(f'x_k_1_warp{k}.png')
             
             m_k_1 =m_k_t0[0] if k==1 else create_motion_field_and_warp_latents(
                 motion_field_strength_x=motion_field_strength_x,
                 motion_field_strength_y=motion_field_strength_y,
                 latents=m_k_t0[k-2]
             )
+            
+            # tensor = m_k_1.cpu().squeeze()  # Remove the batch and channel dimensions
+            # plt.figure(figsize=(20,20))
+            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
+            # plt.savefig(f'm_k_1{k}.png')
+            # plt.close()
+            
             m_k_t0[k-1] = m_k_1 
             m_hat_k_1 = create_motion_field_and_warp_latents(
                 motion_field_strength_x= -motion_field_strength_x,
                 motion_field_strength_y= -motion_field_strength_y,
                 latents=m_k_t0[k-1]
             )
+            
+            # tensor = m_hat_k_1.cpu().squeeze() # Remove the batch and channel dimensions
+            # plt.figure(figsize=(20,20))
+            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
+            # plt.savefig(f'm_hat_k_1{k}.png')
+            
             m_tot_k_1=create_motion_field_and_warp_latents(
                 motion_field_strength_x=motion_field_strength_x,
                 motion_field_strength_y=motion_field_strength_y,
-                latents=m_k_1 + m_hat_k_1
+                latents= ((m_k_1 + m_hat_k_1) > 0.5).to(torch.float16)
             )
+            
+            # tensor = (((m_k_1 + m_hat_k_1) > 0.5).to(torch.float16)).cpu().squeeze()  # Remove the batch and channel dimensions
+            # plt.figure(figsize=(5, 5))
+            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
+            # plt.savefig(f'm_k_1+m_hat-k_1{k}.png')
+            
+            # tensor = m_tot_k_1.cpu().squeeze()  # Remove the batch and channel dimensions
+            # plt.figure(figsize=(20,20))
+            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
+            # plt.savefig(f'm_tot_k_1{k}.png')
+            
             m_BG_tot_k_1 = 1 - m_tot_k_1
+            
+            # tensor = m_BG_tot_k_1.cpu().squeeze()  # Remove the batch and channel dimensions
+            # plt.figure(figsize=(20,20))
+            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
+            # plt.savefig(f'm_BG_tot_k_1{k}.png')
+            
             x_k_t0[k]=x_k_1_warp * m_tot_k_1 + x_k_t0[k-1] * m_BG_tot_k_1
+            
+            # tensor = (x_k_1_warp * m_tot_k_1).cpu().squeeze()  # Remove the batch dimension
+            # fig, axs = plt.subplots(1, 4, figsize=(80, 20))
+            # for i in range(tensor.shape[0]):
+            #     axs[i].imshow(tensor[i], cmap='cool')  # Plot each 64x64 imag
 
+            # plt.savefig(f'x_k_1_warp * m_tot_k_1{k}.png')
+            
+            # tensor = (x_k_t0[k-1] * m_BG_tot_k_1).cpu().squeeze()  # Remove the batch dimension
+            # fig, axs = plt.subplots(1, 4, figsize=(80, 20))
+            # for i in range(tensor.shape[0]):
+            #     axs[i].imshow(tensor[i], cmap='cool')  # Plot each 64x64 imag
+
+            # plt.savefig(f'x_k_t0[k-1] * m_BG_tot_k_1{k}.png')
+            
+            # tensor = x_k_t0[k].cpu().squeeze()  # Remove the batch dimension
+            # fig, axs = plt.subplots(1, 4, figsize=(80, 20))
+            # for i in range(tensor.shape[0]):
+            #     axs[i].imshow(tensor[i], cmap='cool')  # Plot each 64x64 imag
+
+            # plt.savefig(f'x_k_t0[k]{k}.png')
+            
         del m_k_t0
         x_k_t0 = torch.stack(x_k_t0).squeeze() 
 

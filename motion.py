@@ -78,6 +78,8 @@ def warp_single_latent(latent, reference_flow):
 
     warped = grid_sample(latent, coords_t0, mode="nearest", padding_mode="reflection") # (1, 4, 64, 64)
     #warped = grid_sample(latent, coords_t0, mode="nearest", padding_mode="zeros") # (1, 4, 64, 64)
+    if (latent.size(1) == 1):
+        warped = (warped > 0.5).to(latent.dtype)
     return warped
 
 
@@ -125,8 +127,8 @@ def create_motion_field_and_warp_latents(motion_field_strength_x, motion_field_s
     )
     warped_latents = latents.clone().detach()# latents: [7,4,64,64], detach =  don't want to compute gradients
     #check the second dimension of warped_latents is 4 or not
-    if warped_latents.size(1) == 4:
-        warped_latents = warp_single_latent(latents, motion_field)
-    else:
-        warped_latents = warp_mask_latent(latents, motion_field)
+    # if warped_latents.size(1) == 4:
+    warped_latents = warp_single_latent(latents, motion_field)
+    # else:
+    #     warped_latents = warp_mask_latent(latents, motion_field)
     return warped_latents
