@@ -13,7 +13,7 @@ from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline, StableDiffusionSafetyChecker
 from diffusers.schedulers import KarrasDiffusionSchedulers
 from motion import create_motion_field_and_warp_latents
-from cross_attn import  CrossFrameAttnProcessor2_0, CrossFrameAttnProcessor
+from cross_attn import  CrossFrameAttnProcessor2_0
 from diffusers.utils import BaseOutput
 
 from gpt import get_motion
@@ -433,10 +433,10 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         
         #create a dictionary of motion with left, right, up, down as key and  each one will have (2,2) as value
         motion_field_dict = {
-            'left': [-20, 0], #object moving right, pixel motion field is left
-            'right': [20, 0],
-            'up': [0, -20],
-            'down': [0, 20],
+            'left': [20, 0], #object moving left, pixel motion field is left
+            'right': [-20, 0], #move right
+            'up': [0, 20], #move up
+            'down': [0, -20], #move down
             'left_up': [-20, -20],
             'left_down': [-20, 20],
             'right_up': [20, -20],
