@@ -16,7 +16,7 @@ from motion import create_motion_field_and_warp_latents
 from cross_attn import  CrossFrameAttnProcessor2_0
 from diffusers.utils import BaseOutput
 
-from gpt import get_motion
+# from gpt import get_motion
 from sam_test import get_mask
 from falcon import get_label_and_motion
 
