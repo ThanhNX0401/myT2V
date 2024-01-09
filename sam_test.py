@@ -15,7 +15,7 @@ import cv2
 
 from typing import List
 
-from gpt import get_label
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 CONFIG_PATH = "GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py" #unix path
@@ -151,7 +151,7 @@ def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", 
 
     return mask, selection_conf
 
-def get_mask(image, prompt):
+def get_mask(image, prompt,labels):
     print("get mask")
     model_dict = load_model()
     
@@ -159,7 +159,7 @@ def get_mask(image, prompt):
     image = (image * 255).astype(np.uint8)
     cv2.imwrite('output_image.png', image)
     
-    class_name = get_label(prompt)
+    class_name = labels
     boxes=get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.25)
     # check if boxes=[] then assign boxes = image resolution
     if boxes==[]:

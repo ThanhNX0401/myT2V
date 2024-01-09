@@ -18,6 +18,7 @@ from diffusers.utils import BaseOutput
 
 from gpt import get_motion
 from sam_test import get_mask
+from falcon import get_label_and_motion
 
 import matplotlib.pyplot as plt
 from kornia.morphology import dilation
@@ -426,8 +427,10 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         #print the type of image
         print(type(image)) #numpy array
         # get_label = get_label(prompt)
-        Object_motion = get_motion(image) #llava #Blip
-        mask = get_mask(image,prompt[0]) #mask.shape = (512,512)
+        labels,Object_motion = get_label_and_motion(prompt[0])
+        # Object_motion = get_motion(image) #llava #Blip
+        
+        mask = get_mask(image,prompt[0],labels) #mask.shape = (512,512)
         print(mask.shape, Object_motion)
         print("test end")
         
