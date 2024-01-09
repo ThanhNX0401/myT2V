@@ -71,6 +71,8 @@ def get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.
     # annotated_frame = annotated_frame[...,::-1] # BGR to RGB image with boxes and labels
     # #annotated_frame= cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
     boxes = detections.xyxy.tolist()
+    del GD_model
+    torch.cuda.empty_cache()
     return boxes
 
 def sam(model_dict, image, input_points=None, input_boxes=None, target_mask_shape=None, return_numpy=True):
