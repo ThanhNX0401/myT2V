@@ -423,7 +423,10 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         print("test start")
         #print the type of X_0
         print(type(X_0)) #torch.tensor
-        image = self.decode_latents(X_0) 
+        image = self.decode_latents(X_0)
+        del X_0
+        torch.cuda.empty_cache()
+         
         #print the type of image
         print(type(image)) #numpy array
         # get_label = get_label(prompt)

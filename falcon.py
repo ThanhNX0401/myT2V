@@ -71,15 +71,24 @@ def get_label_and_motion(prompts):
 
     print(tokenizer.decode(outputs[0], skip_special_tokens=True))
     output = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    lines = output.split("\n")
-    assistant_line = next(line for line in lines if line.startswith("<assistant>:"))
-    json_str = assistant_line[len("<assistant>: "):]
+    start_index = output.find('<assistant>:') + len('<assistant>:')
+    end_index = output.find('}', start_index) + 1  # Add 1 to include the closing brace
+
+    # Extract the dictionary string
+    json_str = output[start_index:end_index].strip()
 
     # Parse the JSON string into a dictionary
     dictionary = json.loads(json_str)
+    print("1")
+    print(json_str)
 
-    # Now 'dictionary' is a Python dictionary that you can work with
+    print("2")
+
+    del outputs
+    del encoding
     print(dictionary)
+    # Empty the GPU cache
+    torch.cuda.empty_cache()
     return dictionary['object'],dictionary['direction']
     
     
