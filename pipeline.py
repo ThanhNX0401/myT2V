@@ -443,13 +443,10 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             'right': [-20, 0], #move right
             'up': [0, 20], #move up
             'down': [0, -20], #move down
-            'left_up': [-20, -20],
-            'left_down': [-20, 20],
-            'right_up': [20, -20],
-            'right_down': [20, 20],
+            'motionless':[2,2]
         }
         
-        motion_field_strength_x, motion_field_strength_y = motion_field_dict.get(Object_motion, motion_field_dict['right_down'])
+        motion_field_strength_x, motion_field_strength_y = motion_field_dict.get(Object_motion, motion_field_dict['motionless'])
         #write me the code to apply resize the mask to h and w of x_1_t1 and apply dilation
         mask = torch.from_numpy(mask)[None, None].to(x_1_t1.device).to(x_1_t1.dtype)
         mask = transforms.Resize(size=(64, 64), interpolation=transforms.InterpolationMode.NEAREST)(mask)
