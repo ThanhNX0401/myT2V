@@ -41,6 +41,7 @@ model = AutoModelForCausalLM.from_pretrained(
 tokenizer=AutoTokenizer.from_pretrained(config.base_model_name_or_path)
 tokenizer.pad_token = tokenizer.eos_token
 model = PeftModel.from_pretrained(model, PEFT_MODEL)
+
 def get_label_and_motion(prompts):
     generation_config = model.generation_config
     generation_config.max_new_tokens = 20

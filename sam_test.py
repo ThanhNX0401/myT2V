@@ -15,11 +15,16 @@ import cv2
 
 from typing import List
 
-
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 CONFIG_PATH = "GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py" #unix path
 CHECK_POINT_PATH = "GroundingDINO/weights/groundingdino_swint_ogc.pth"
+
+def load_model():
+    GD_model = Model(model_config_path=CONFIG_PATH,model_checkpoint_path=CHECK_POINT_PATH)
+    model = SamModel.from_pretrained("facebook/sam-vit-huge").to(device)
+    processor = SamProcessor.from_pretrained("facebook/sam-vit-huge")
+    model_dict = dict(sam_model=model, sam_processor=processor, GD_model=GD_model)
+    return model_dict
 
 
 def enhance_class_name(class_names: List[str]) -> List[str]:
@@ -29,28 +34,10 @@ def enhance_class_name(class_names: List[str]) -> List[str]:
         in class_names
     ]
 
-
-def load_model():
-    GD_model = Model(model_config_path=CONFIG_PATH,model_checkpoint_path=CHECK_POINT_PATH)
-    model = SamModel.from_pretrained("facebook/sam-vit-huge").to(device)
-    processor = SamProcessor.from_pretrained("facebook/sam-vit-huge")
-    model_dict = dict(sam_model=model, sam_processor=processor, GD_model=GD_model)
-    return model_dict
-
 def get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.25):
-    #IMAGE_PATH = "'output_image.png'"
-    #CLASSES = ["spiderman", "surf board"]
-    #image = (image * 255).astype(np.uint8) # BGR //need ndarray (512,512,3)
-    #cv2.imwrite('output_image.png', image)
     CLASSES = class_name
     BOX_THRESHOLD = box_threshold
     TEXT_THRESHOLD = text_threshold
-    # load image
-    
-    #image = cv2.imread(IMAGE_PATH) # BGR //need ndarray (512,512,3)
-    # detect objects
-    print("test get box ", class_name, image.shape)
-    
     GD_model = model_dict['GD_model']
     detections = GD_model.predict_with_classes(
         image=image,
@@ -58,18 +45,6 @@ def get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.
         box_threshold=BOX_THRESHOLD,
         text_threshold=TEXT_THRESHOLD
     )
-    print(detections)
-
-    # # annotate image with detections
-    # box_annotator = sv.BoxAnnotator()
-    # labels = [
-    #     f"{CLASSES[class_id]} {confidence:0.2f}" 
-    #     for boxes, mask, confidence, class_id, _ 
-    #     in detections]
-
-    # annotated_frame = box_annotator.annotate(scene=image.copy(), detections=detections, labels=labels)
-    # annotated_frame = annotated_frame[...,::-1] # BGR to RGB image with boxes and labels
-    # #annotated_frame= cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
     boxes = detections.xyxy.tolist()
     del GD_model
     torch.cuda.empty_cache()
@@ -80,7 +55,6 @@ def sam(model_dict, image, input_points=None, input_boxes=None, target_mask_shap
     sam_model, sam_processor = model_dict['sam_model'], model_dict['sam_processor']
     
     with torch.no_grad():
-        #with torch.autocast(device):
         inputs = sam_processor(image, input_points=input_points, input_boxes=[input_boxes], return_tensors="pt").to(device)
         outputs = sam_model(**inputs)
         masks = sam_processor.image_processor.post_process_masks(
@@ -88,8 +62,6 @@ def sam(model_dict, image, input_points=None, input_boxes=None, target_mask_shap
         )
         conf_scores = outputs.iou_scores.cpu().numpy()[0]
         del inputs, outputs
-    
-    # Uncomment if experiencing out-of-memory error:
     # utils.free_memory()
     
     if return_numpy:
@@ -106,51 +78,20 @@ def sam_box_input(sam_model_dict, image, input_boxes, **kwargs):
     
     return sam(sam_model_dict, image, input_boxes=input_boxes, **kwargs)
 
-def select_mask(masks, conf_scores, coarse_ious=None, rule="largest_over_conf", discourage_mask_below_confidence=0.85, discourage_mask_below_coarse_iou=0.2, verbose=3):
-    """masks: numpy bool array"""
+def select_mask(masks, conf_scores, discourage_mask_below_confidence=0.85):
+
     mask_sizes = masks.sum(axis=(1, 2))
-    
-    # Another possible rule: iou with the attention mask
-    if rule == "largest_over_conf":
-        # Use the largest segmentation
-        # Discourage selecting masks with conf too low or coarse iou is too low
-        max_mask_size = np.max(mask_sizes)
-        if coarse_ious is not None:
-            scores = mask_sizes - (conf_scores < discourage_mask_below_confidence) * max_mask_size - (coarse_ious < discourage_mask_below_coarse_iou) * max_mask_size
-        else:
-            scores = mask_sizes - (conf_scores < discourage_mask_below_confidence) * max_mask_size
-        if verbose:
-            print(f"mask_sizes: {mask_sizes}, scores: {scores}")
-    else:
-        raise ValueError(f"Unknown rule: {rule}")
+    max_mask_size = np.max(mask_sizes)
+    scores = mask_sizes - (conf_scores < discourage_mask_below_confidence) * max_mask_size
+
+    print(f"mask_sizes: {mask_sizes}, scores: {scores}")
 
     mask_id = np.argmax(scores)
     mask = masks[mask_id]
     
     selection_conf = conf_scores[mask_id]
-    
-    if coarse_ious is not None:
-        selection_coarse_iou = coarse_ious[mask_id]
-    else:
-        selection_coarse_iou = None
 
-    if verbose:
-        # print(f"Confidences: {conf_scores}")
-        print(f"Selected a mask with confidence: {selection_conf}") #, coarse_iou: {selection_coarse_iou}")
-
-    if verbose >= 2:
-        plt.figure(figsize=(10, 8))
-        # plt.suptitle("After SAM")
-        for ind in range(3):
-            plt.subplot(1, 3, ind+1)
-            # This is obtained before resize.
-            plt.title(f"Mask {ind}, score {scores[ind]}, conf {conf_scores[ind]:.2f}") #, iou {coarse_ious[ind] if coarse_ious is not None else None:.2f}")
-            plt.imshow(masks[ind])
-        plt.tight_layout()
-        plt.savefig('masks.png')
-        plt.show()
-        plt.close()
-
+    print(f"Selected a mask with confidence: {selection_conf}") 
     return mask, selection_conf
 
 def get_mask(image, prompt,labels):

@@ -12,7 +12,7 @@ from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
 from diffusers.models import AutoencoderKL, UNet2DConditionModel
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipeline, StableDiffusionSafetyChecker
 from diffusers.schedulers import KarrasDiffusionSchedulers
-from motion import create_motion_field_and_warp_latents
+from motion import warp_latents
 from cross_attn import  CrossFrameAttnProcessor2_0
 from diffusers.utils import BaseOutput
 
@@ -64,7 +64,7 @@ def randn_tensor(
 
     return latents
 
-class TextToVideoPipelineOutput(BaseOutput): #ke thua BaseOutput
+class PipelineOutput(BaseOutput): #ke thua BaseOutput
     r"""
     Output class for zero-shot text-to-video pipeline.
 
@@ -439,8 +439,8 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         
         #create a dictionary of motion with left, right, up, down as key and  each one will have (2,2) as value
         motion_field_dict = {
-            'left': [20, 0], #object moving left, pixel motion field is left
-            'right': [-20, 0], #move right
+            'left': [-20, 0], #object moving left, pixel motion field is left
+            'right': [20, 0], #move right
             'up': [0, 20], #move up
             'down': [0, -20], #move down
             'motionless':[2,2]
@@ -485,7 +485,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         m_k_t0 = [m_0 for _ in range(video_length)]
         #warp mask  
         for k in range(1, video_length):
-            x_k_1_warp = create_motion_field_and_warp_latents(
+            x_k_1_warp = warp_latents(
                 motion_field_strength_x=motion_field_strength_x,
                 motion_field_strength_y=motion_field_strength_y,
                 latents=x_k_t0[k-1]
@@ -496,7 +496,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             #     axs[i].imshow(tensor[i], cmap='cool')  # Plot each 64x64 image
             # plt.savefig(f'x_k_1_warp{k}.png')
             
-            m_k_1 =m_k_t0[0] if k==1 else create_motion_field_and_warp_latents(
+            m_k_1 =m_k_t0[0] if k==1 else warp_latents(
                 motion_field_strength_x=motion_field_strength_x,
                 motion_field_strength_y=motion_field_strength_y,
                 latents=m_k_t0[k-2]
@@ -509,7 +509,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             # plt.close()
             
             m_k_t0[k-1] = m_k_1 
-            m_hat_k_1 = create_motion_field_and_warp_latents(
+            m_hat_k_1 = warp_latents(
                 motion_field_strength_x= -motion_field_strength_x,
                 motion_field_strength_y= -motion_field_strength_y,
                 latents=m_k_t0[k-1]
@@ -520,7 +520,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
             # plt.savefig(f'm_hat_k_1{k}.png')
             
-            m_tot_k_1=create_motion_field_and_warp_latents(
+            m_tot_k_1=warp_latents(
                 motion_field_strength_x=motion_field_strength_x,
                 motion_field_strength_y=motion_field_strength_y,
                 latents= ((m_k_1 + m_hat_k_1) > 0.5).to(torch.float16)
@@ -615,4 +615,4 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         if not return_dict:
             return (image, has_nsfw_concept)
 
-        return TextToVideoPipelineOutput(images=image, nsfw_content_detected=has_nsfw_concept)
+        return PipelineOutput(images=image, nsfw_content_detected=has_nsfw_concept)
