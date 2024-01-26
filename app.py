@@ -1,9 +1,18 @@
+from __future__ import annotations
+
 
 import gradio as gr
 
-from app_text_to_video import create_demo_text_to_video
+
+
+import gradio as gr
 import argparse
 
+from app_text_to_video import create_demo_text_to_video
+from css.theme import Seafoam
+
+
+seafoam=Seafoam()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--public_access', action='store_true',
@@ -12,12 +21,10 @@ args = parser.parse_args()
 
 
 
-with gr.Blocks(css='style.css') as demo:
-
-    with gr.Tab('Text2Video'):
-        create_demo_text_to_video()
+with gr.Blocks(css="css/style.css", theme=seafoam) as demo:
+    create_demo_text_to_video()
 
 
 print("Generating Gradio app LINK:")
-_, _, link = demo.queue(api_open=False).launch(share=args.public_access)
+_, _, link = demo.queue(api_open=False).launch(share=args.public_access) #allowed_paths=[absolute_path]
 print(link)
