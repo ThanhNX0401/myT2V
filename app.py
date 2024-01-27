@@ -3,12 +3,9 @@ from __future__ import annotations
 
 import gradio as gr
 
-
-
-import gradio as gr
 import argparse
 
-
+from app_text_to_video import create_demo_text_to_video
 from css.theme import Seafoam
 from css import theme
 

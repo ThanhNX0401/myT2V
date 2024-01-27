@@ -5,8 +5,9 @@ from gradio.themes.base import Base
 from gradio.themes.utils import colors, fonts, sizes
 import os
 
-image= 'bk.png'
-image_path = os.path.abspath(image)
+image = 'bk.png'
+script_dir = os.path.dirname(os.path.abspath(__file__))
+image_path = os.path.join(script_dir, image)
 
 
 class Seafoam(Base):
