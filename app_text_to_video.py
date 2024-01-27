@@ -6,8 +6,9 @@ from pipeline import Pipeline
 
 pipe = Pipeline.from_pretrained("runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16).to("cuda")
 DESCRIPTION = "Text to Video generation using Stable diffusion and multimodel"
-def process_text2video( input_prompt, video_length, fps, seed, t0, t1,guidance_scale, num_inference_steps, negative_prompt):
-    frame = pipe(   prompt=input_prompt,
+            
+def process_text2video(prompt, negative_prompt, seed, guidance_scale, num_inference_steps, video_length, fps, t0, t1):
+    frame = pipe(   prompt=prompt,
                     negative_prompt=negative_prompt,
                     num_inference_steps=num_inference_steps,
                     guidance_scale=guidance_scale, 
@@ -131,7 +132,7 @@ def create_demo_text_to_video():
             video_length,
             fps,
             t0,
-            t1,
+            t1
         ]
 
         run_button.click(fn=process_text2video,

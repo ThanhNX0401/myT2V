@@ -8,9 +8,11 @@ import gradio as gr
 import gradio as gr
 import argparse
 
-from app_text_to_video import create_demo_text_to_video
-from css.theme import Seafoam
 
+from css.theme import Seafoam
+from css import theme
+
+image_path=theme.image_path
 
 seafoam=Seafoam()
 
@@ -26,5 +28,5 @@ with gr.Blocks(css="css/style.css", theme=seafoam) as demo:
 
 
 print("Generating Gradio app LINK:")
-_, _, link = demo.queue(api_open=False).launch(share=args.public_access) #allowed_paths=[absolute_path]
+_, _, link = demo.queue(api_open=False).launch(share=args.public_access,allowed_paths=[image_path])
 print(link)
