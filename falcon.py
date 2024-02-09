@@ -18,7 +18,7 @@ from transformers import (
 )
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-MODEL_NAME = "vilsonrodrigues/falcon-7b-instruct-sharded"
+MODEL_NAME = "tiiuae/falcon-7b-instruct"
 
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,
@@ -28,7 +28,7 @@ bnb_config = BitsAndBytesConfig(
 )
 
 
-PEFT_MODEL = "ThanhNX/falcon_7b-FT"
+PEFT_MODEL = "ThanhNX/falcon_7b-FT1"
 config = PeftConfig.from_pretrained(PEFT_MODEL)
 model = AutoModelForCausalLM.from_pretrained(
     config.base_model_name_or_path,
