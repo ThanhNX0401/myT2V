@@ -16,7 +16,6 @@ from motion import warp_latents
 from cross_attn import  CrossFrameAttnProcessor2_0
 from diffusers.utils import BaseOutput
 
-# from gpt import get_motion
 from sam_test import get_mask
 from falcon import get_label_and_motion
 
@@ -30,10 +29,6 @@ def randn_tensor(
     dtype: Optional["torch.dtype"] = None,
     layout: Optional["torch.layout"] = None,
 ):
-    """A helper function to create random tensors on the desired `device` with the desired `dtype`. When
-    passing a list of generators, you can seed each batch size individually. If CPU generators are passed, the tensor
-    is always created on the CPU.
-    """
     # device on which tensor is created defaults to device
     rand_device = device
     batch_size = shape[0]
@@ -65,28 +60,12 @@ def randn_tensor(
     return latents
 
 class PipelineOutput(BaseOutput): #ke thua BaseOutput
-    r"""
-    Output class for zero-shot text-to-video pipeline.
-
-    Args:
-        images (`[List[PIL.Image.Image]`, `np.ndarray`]):
-            List of denoised PIL images of length `batch_size` or NumPy array of shape `(batch_size, height, width,
-            num_channels)`.
-        nsfw_content_detected (`[List[bool]]`):
-            List indicating whether the corresponding generated image contains "not-safe-for-work" (nsfw) content or
-            `None` if safety checking could not be performed.
-    """
     images: Union[List[PIL.Image.Image], np.ndarray]
     nsfw_content_detected: Optional[List[bool]]
 
 
 class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
     r"""
-    Pipeline for zero-shot text-to-video generation using Stable Diffusion.
-
-    This model inherits from [`DiffusionPipeline`]. Check the superclass documentation for the generic methods
-    implemented for all pipelines (downloading, saving, running on a particular device, etc.).
-
     Args:
         vae ([`AutoencoderKL`]):
             Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
@@ -127,28 +106,13 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
     def forward_loop(self, x_t0, t0, t1, generator):
         """
         Perform DDPM forward process from time t0 to t1. This is the same as adding noise with corresponding variance.
-
-        Args:
-            x_t0:
-                Latent code at time t0.
-            t0:
-                Timestep at t0.
-            t1:
-                Timestamp at t1.
-            generator (`torch.Generator` or `List[torch.Generator]`, *optional*):
-                A [`torch.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make
-                generation deterministic.
-
-        Returns:
-            x_t1:
-                Forward process applied to x_t0 from time t0 to t1.
         """
         eps = torch.randn(x_t0.size(), generator=generator, dtype=x_t0.dtype, device=x_t0.device)
         alpha_vec = torch.prod(self.scheduler.alphas[t0:t1])
         x_t1 = torch.sqrt(alpha_vec) * x_t0 + torch.sqrt(1 - alpha_vec) * eps
         return x_t1
 
-    def backward_loop( #DDPM backward process
+    def backward_loop( 
         self,
         latents,
         timesteps,
@@ -243,10 +207,9 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         return latents
     
     def decode_latents(self, latents):
-        latents = 1 / self.vae.config.scaling_factor * latents
+        latents = 1 / self.vae.config.scaling_factor * latents #denormalize
         image = self.vae.decode(latents, return_dict=False)[0]
         image = (image / 2 + 0.5).clamp(0, 1)
-        # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         image = image.cpu().permute(0, 2, 3, 1).float().numpy()
         return image
 
@@ -274,73 +237,6 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         t1: int = 47, 
         frame_ids: Optional[List[int]] = None,
     ):
-        """
-        The call function to the pipeline for generation.
-
-        Args:
-            prompt (`str` or `List[str]`, *optional*):
-                The prompt or prompts to guide image generation. If not defined, you need to pass `prompt_embeds`.
-            video_length (`int`, *optional*, defaults to 8):
-                The number of generated video frames.
-            height (`int`, *optional*, defaults to `self.unet.config.sample_size * self.vae_scale_factor`):
-                The height in pixels of the generated image.
-            width (`int`, *optional*, defaults to `self.unet.config.sample_size * self.vae_scale_factor`):
-                The width in pixels of the generated image.
-            num_inference_steps (`int`, *optional*, defaults to 50):
-                The number of denoising steps. More denoising steps usually lead to a higher quality image at the
-                expense of slower inference.
-            guidance_scale (`float`, *optional*, defaults to 7.5):
-                A higher guidance scale value encourages the model to generate images closely linked to the text
-                `prompt` at the expense of lower image quality. Guidance scale is enabled when `guidance_scale > 1`.
-            negative_prompt (`str` or `List[str]`, *optional*):
-                The prompt or prompts to guide what to not include in video generation. If not defined, you need to
-                pass `negative_prompt_embeds` instead. Ignored when not using guidance (`guidance_scale < 1`).
-            num_videos_per_prompt (`int`, *optional*, defaults to 1):
-                The number of videos to generate per prompt.
-            eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
-            generator (`torch.Generator` or `List[torch.Generator]`, *optional*):
-                A [`torch.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make
-                generation deterministic.
-            latents (`torch.FloatTensor`, *optional*):
-                Pre-generated noisy latents sampled from a Gaussian distribution, to be used as inputs for video
-                generation. Can be used to tweak the same generation with different prompts. If not provided, a latents
-                tensor is generated by sampling using the supplied random `generator`.
-            output_type (`str`, *optional*, defaults to `"numpy"`):
-                The output format of the generated video. Choose between `"latent"` and `"numpy"`.
-            return_dict (`bool`, *optional*, defaults to `True`):
-                Whether or not to return a
-                [`~pipelines.text_to_video_synthesis.pipeline_text_to_video_zero.TextToVideoPipelineOutput`] instead of
-                a plain tuple.
-            callback (`Callable`, *optional*):
-                A function that calls every `callback_steps` steps during inference. The function is called with the
-                following arguments: `callback(step: int, timestep: int, latents: torch.FloatTensor)`.
-            callback_steps (`int`, *optional*, defaults to 1):
-                The frequency at which the `callback` function is called. If not specified, the callback is called at
-                every step.
-            motion_field_strength_x (`float`, *optional*, defaults to 12):
-                Strength of motion in generated video along x-axis. See the [paper](https://arxiv.org/abs/2303.13439),
-                Sect. 3.3.1.
-            motion_field_strength_y (`float`, *optional*, defaults to 12):
-                Strength of motion in generated video along y-axis. See the [paper](https://arxiv.org/abs/2303.13439),
-                Sect. 3.3.1.
-            t0 (`int`, *optional*, defaults to 44):
-                Timestep t0. Should be in the range [0, num_inference_steps - 1]. See the
-                [paper](https://arxiv.org/abs/2303.13439), Sect. 3.3.1.
-            t1 (`int`, *optional*, defaults to 47):
-                Timestep t0. Should be in the range [t0 + 1, num_inference_steps - 1]. See the
-                [paper](https://arxiv.org/abs/2303.13439), Sect. 3.3.1.
-            frame_ids (`List[int]`, *optional*):
-                Indexes of the frames that are being generated. This is used when generating longer videos
-                chunk-by-chunk.
-
-        Returns:
-            [`~pipelines.text_to_video_synthesis.pipeline_text_to_video_zero.TextToVideoPipelineOutput`]:
-                The output contains a `ndarray` of the generated video, when `output_type` != `"latent"`, otherwise a
-                latent code of generated videos and a list of `bool`s indicating whether the corresponding generated
-                video contains "not-safe-for-work" (nsfw) content..
-        """
         assert video_length > 0 #video_length = 8
         if frame_ids is None:
             frame_ids = list(range(video_length))
@@ -353,6 +249,7 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         if isinstance(negative_prompt, str):
             negative_prompt = [negative_prompt]
         print(prompt) #list
+        
         # Default height and width to unet
         height = height or self.unet.config.sample_size * self.vae_scale_factor #[256, 256]
         width = width or self.unet.config.sample_size * self.vae_scale_factor #[256, 256]
@@ -420,49 +317,37 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             num_warmup_steps=num_warmup_steps,
         )
         
-        print("test start")
-        #print the type of X_0
+        print("start")
+ 
         print(type(X_0)) #torch.tensor
         image = self.decode_latents(X_0)
         del X_0
         torch.cuda.empty_cache()
          
-        #print the type of image
         print(type(image)) #numpy array
-        # get_label = get_label(prompt)
         labels,Object_motion = get_label_and_motion(prompt[0])
-        # Object_motion = get_motion(image) #llava #Blip
-        
+
         mask = get_mask(image,prompt[0],labels) #mask.shape = (512,512)
         print(mask.shape, Object_motion)
         print("test end")
         
-        #create a dictionary of motion with left, right, up, down as key and  each one will have (2,2) as value
         motion_field_dict = {
-            'left': [-20, 0], #object moving left, pixel motion field is left
-            'right': [20, 0], #move right
-            'up': [0, 20], #move up
-            'down': [0, -20], #move down
+            'left': [-15, 0], #object moving left, pixel motion field is left
+            'right': [15, 0], #move right
+            'up': [0, 15], #move up
+            'down': [0, -15], #move down
             'motionless':[2,2]
         }
         
         motion_field_strength_x, motion_field_strength_y = motion_field_dict.get(Object_motion, motion_field_dict['motionless'])
-        #write me the code to apply resize the mask to h and w of x_1_t1 and apply dilation
+
         mask = torch.from_numpy(mask)[None, None].to(x_1_t1.device).to(x_1_t1.dtype)
         mask = transforms.Resize(size=(64, 64), interpolation=transforms.InterpolationMode.NEAREST)(mask)
-        #dilaion??
         kernel = torch.ones(5, 5, device=x_1_t1.device, dtype=x_1_t1.dtype)
         mask = dilation(mask, kernel)[0]
-        #m_0 = m_0.to(x_1_t1.device) # dtype=torch.uint8
         m_0 = mask[None]
         m_0 = (m_0 > 0.5).to(x_1_t1.dtype)
-        
-        # tensor = m_0.cpu().squeeze()  # Remove the batch and channel dimensions
-        # plt.figure(figsize=(20,20))
-        # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
-        # plt.savefig(f'm0.png')
-        # self.scheduler = scheduler_copy
-        
+            
         # Perform the second backward process up to time T_0
         x_1_t0 = self.backward_loop(
             timesteps=timesteps[-t1 - 1 : -t0 - 1],
@@ -474,12 +359,6 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
             extra_step_kwargs=extra_step_kwargs,
             num_warmup_steps=0,
         )
-
-        # Propagate first frame latents at time T_0 to remaining frames
-        #x_2k_t0 = x_1_t0.repeat(video_length-1, 1, 1, 1)
-         
-        # x_k_t0= x_1_t0.repeat(video_length, 1, 1, 1) #create 8 frames
-        # m_k_t0= m_0.repeat(video_length, 1, 1, 1) #create 8 frames
         
         x_k_t0 = [x_1_t0 for _ in range(video_length)]
         m_k_t0 = [m_0 for _ in range(video_length)]
@@ -490,23 +369,12 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
                 motion_field_strength_y=motion_field_strength_y,
                 latents=x_k_t0[k-1]
             )
-            # tensor = x_k_1_warp.cpu().squeeze()  # Remove the batch dimension
-            # fig, axs = plt.subplots(1, 4, figsize=(80, 20))
-            # for i in range(tensor.shape[0]):
-            #     axs[i].imshow(tensor[i], cmap='cool')  # Plot each 64x64 image
-            # plt.savefig(f'x_k_1_warp{k}.png')
             
             m_k_1 =m_k_t0[0] if k==1 else warp_latents(
                 motion_field_strength_x=motion_field_strength_x,
                 motion_field_strength_y=motion_field_strength_y,
                 latents=m_k_t0[k-2]
             )
-            
-            # tensor = m_k_1.cpu().squeeze()  # Remove the batch and channel dimensions
-            # plt.figure(figsize=(20,20))
-            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
-            # plt.savefig(f'm_k_1{k}.png')
-            # plt.close()
             
             m_k_t0[k-1] = m_k_1 
             m_hat_k_1 = warp_latents(
@@ -515,49 +383,13 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
                 latents=m_k_t0[k-1]
             )
             
-            # tensor = m_hat_k_1.cpu().squeeze() # Remove the batch and channel dimensions
-            # plt.figure(figsize=(20,20))
-            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
-            # plt.savefig(f'm_hat_k_1{k}.png')
-            
             m_tot_k_1=warp_latents(
                 motion_field_strength_x=motion_field_strength_x,
                 motion_field_strength_y=motion_field_strength_y,
                 latents= ((m_k_1 + m_hat_k_1) > 0.5).to(torch.float16)
             )
-            
-            # tensor = (((m_k_1 + m_hat_k_1) > 0.5).to(torch.float16)).cpu().squeeze()  # Remove the batch and channel dimensions
-            # plt.figure(figsize=(5, 5))
-            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
-            # plt.savefig(f'm_k_1+m_hat-k_1{k}.png')
-            
-            # tensor = m_tot_k_1.cpu().squeeze()  # Remove the batch and channel dimensions
-            # plt.figure(figsize=(20,20))
-            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
-            # plt.savefig(f'm_tot_k_1{k}.png')
-            
             m_BG_tot_k_1 = 1 - m_tot_k_1
-            
-            # tensor = m_BG_tot_k_1.cpu().squeeze()  # Remove the batch and channel dimensions
-            # plt.figure(figsize=(20,20))
-            # plt.imshow(tensor, cmap='cool')  # Plot the 64x64 image in grayscale
-            # plt.savefig(f'm_BG_tot_k_1{k}.png')
-            
             x_k_t0[k]=x_k_1_warp * m_tot_k_1 + x_k_t0[k-1] * m_BG_tot_k_1
-            
-            # tensor = (x_k_1_warp * m_tot_k_1).cpu().squeeze()  # Remove the batch dimension
-            # fig, axs = plt.subplots(1, 4, figsize=(80, 20))
-            # for i in range(tensor.shape[0]):
-            #     axs[i].imshow(tensor[i], cmap='cool')  # Plot each 64x64 imag
-
-            # plt.savefig(f'x_k_1_warp * m_tot_k_1{k}.png')
-            
-            # tensor = (x_k_t0[k-1] * m_BG_tot_k_1).cpu().squeeze()  # Remove the batch dimension
-            # fig, axs = plt.subplots(1, 4, figsize=(80, 20))
-            # for i in range(tensor.shape[0]):
-            #     axs[i].imshow(tensor[i], cmap='cool')  # Plot each 64x64 imag
-
-            # plt.savefig(f'x_k_t0[k-1] * m_BG_tot_k_1{k}.png')
             
             # tensor = x_k_t0[k].cpu().squeeze()  # Remove the batch dimension
             # fig, axs = plt.subplots(1, 4, figsize=(80, 20))

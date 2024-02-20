@@ -45,7 +45,7 @@ h2 {
 }
 #title span {
     color: black;
-    background-color: lightblue; /* Fill the area inside the border with light blue */
+    background-color: rgb(145, 196, 212); /* Fill the area inside the border with light blue */
     border: 2px solid lightblue;
 }
 

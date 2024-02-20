@@ -76,10 +76,8 @@ def get_label_and_motion(prompts):
 
     # Parse the JSON string into a dictionary
     dictionary = json.loads(json_str)
-    print("1")
+    print("check answer")
     print(json_str)
-
-    print("2")
 
     del outputs
     del encoding

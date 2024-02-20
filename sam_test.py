@@ -51,7 +51,6 @@ def get_box(model_dict, image, class_name, box_threshold=0.35, text_threshold=0.
     return boxes
 
 def sam(model_dict, image, input_points=None, input_boxes=None, target_mask_shape=None, return_numpy=True):
-    """target_mask_shape: (h, w)"""
     sam_model, sam_processor = model_dict['sam_model'], model_dict['sam_processor']
     
     with torch.no_grad():
@@ -63,7 +62,7 @@ def sam(model_dict, image, input_points=None, input_boxes=None, target_mask_shap
         conf_scores = outputs.iou_scores.cpu().numpy()[0]
         del inputs, outputs
     # utils.free_memory()
-    
+    # target_mask_shape = (h, w)
     if return_numpy:
         masks = [F.interpolate(masks_item.type(torch.float), target_mask_shape, mode='bilinear').type(torch.bool).numpy() for masks_item in masks]
     else:
@@ -71,11 +70,10 @@ def sam(model_dict, image, input_points=None, input_boxes=None, target_mask_shap
 
     return masks, conf_scores
 
-def sam_point_input(sam_model_dict, image, input_points, **kwargs):
-    return sam(sam_model_dict, image, input_points=input_points, **kwargs)
+# def sam_point_input(sam_model_dict, image, input_points, **kwargs):
+#     return sam(sam_model_dict, image, input_points=input_points, **kwargs)
     
 def sam_box_input(sam_model_dict, image, input_boxes, **kwargs):
-    
     return sam(sam_model_dict, image, input_boxes=input_boxes, **kwargs)
 
 def select_mask(masks, conf_scores, discourage_mask_below_confidence=0.85):
@@ -119,18 +117,14 @@ def get_mask(image, prompt,labels):
         selected_mask_list.append(selected_mask)
         #selected_scores_list.append(selected_scores)
     combined_mask = np.logical_or.reduce(selected_mask_list) #only 1 mask
-    print("combine mask")
-    has_different_value = ((combined_mask != 0) & (combined_mask != 1)).any()
-    print(has_different_value.item())
     combined_mask = (combined_mask * 255).astype(np.uint8)
     print("combine mask1")
-    has_different_value = ((combined_mask != 0) & (combined_mask != 1)).any()
-    print(has_different_value.item())
+
     cv2.imwrite('mask1.png', combined_mask)
     print(combined_mask.shape)
-    #plot the combined_mask
-    plt.figure(figsize=(10, 8))
-    plt.imshow(combined_mask)
-    plt.savefig('combined_mask.png')
+    # #plot the combined_mask
+    # plt.figure(figsize=(10, 8))
+    # plt.imshow(combined_mask)
+    # plt.savefig('combined_mask.png')
 
     return combined_mask

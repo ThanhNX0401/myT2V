@@ -27,25 +27,6 @@ def create_demo_text_to_video():
             f"""<h1><span>{DESCRIPTION}</span></h1>""",
             elem_id="title",
         )
-        # gr.Markdown(
-        #     f"""Prompting is a bit different in this iteration, we train the model like this:
-        #     ```
-        #     1girl/1boy, character name, from what series, everything else in any order. 
-        #     ```
-        #     Prompting Tips
-        #     ```
-        #     1. Quality Tags: `masterpiece, best quality, high quality, normal quality, worst quality, low quality`
-        #     2. Year Tags: `oldest, early, mid, late, newest`
-        #     3. Rating tags: `rating: general, rating: sensitive, rating: questionable, rating: explicit, nsfw`
-        #     4. Escape character: `character name \(series\)`
-        #     5. Recommended settings: `Euler a, cfg 5-7, 25-28 steps`
-        #     6. It's recommended to use the exact danbooru tags for more accurate result
-        #     7. To use character wildcard, add this syntax to the prompt `__character__`.
-        #     ```
-        #     """,
-        #     elem_id="subtitle",
-        # )
-        
         with gr.Row():
             with gr.Column(variant="panel",scale=2):
                 with gr.Tab("Txt2Vid"):
@@ -60,24 +41,7 @@ def create_demo_text_to_video():
                             max_lines=5,
                             placeholder="Enter a negative prompt",
                         )
-                        # with gr.Accordion(label="Quality Tags", open=True):
-                        #     add_quality_tags = gr.Checkbox(label="Add Quality Tags", value=True)
-                        #     quality_selector = gr.Dropdown(
-                        #         label="Quality Tags Presets",
-                        #         interactive=True,
-                        #         choices=list(quality_prompt.keys()),
-                        #         value="Standard",
-                        #     )
-                        # with gr.Row():
-                        #     use_lora = gr.Checkbox(label="Use LoRA", value=False)
                 with gr.Tab("Advanced Settings"):
-                    # with gr.Group():
-                    #     sampler = gr.Dropdown(
-                    #         label="Sampler",
-                    #         choices=sampler_list,
-                    #         interactive=True,
-                    #         value="Euler a",
-                    #     )
                     with gr.Group():
                         video_length = gr.Slider(
                             label="Video length",  minimum=1, maximum=16, step=1, value=4)
@@ -106,22 +70,13 @@ def create_demo_text_to_video():
                             )
                     with gr.Group():
                         gr.Markdown("Perform DDPM steps from t0 to t1. The larger the gap between t0 and t1, the more variance between the frames. Ensure t0 < t1 ")
-                        t0 = gr.Slider(label="Timestep t0", minimum=0, maximum=50, value=44, step=1,)
-                        t1 = gr.Slider(label="Timestep t1", minimum=1, maximum=50, value=47, step=1,)
+                        t0 = gr.Slider(label="Timestep t0", minimum=0, maximum=100, value=21, step=1,)
+                        t1 = gr.Slider(label="Timestep t1", minimum=1, maximum=100, value=27, step=1,)
 
             with gr.Column(variant="panel",scale=3):
                 with gr.Blocks():
                     run_button = gr.Button("Generate", variant="primary")
                 result = gr.Video(label="Generated Video")
-                # with gr.Accordion(label="Generation Parameters", open=False):
-                #     gr_metadata = gr.JSON(label="Metadata", show_label=False)
-                # gr.Examples(
-                #     examples=examples,
-                #     inputs=prompt,
-                #     outputs=[result, gr_metadata],
-                #     fn=generate,
-                #     cache_examples=CACHE_EXAMPLES,
-                # )
 
         inputs = [
             prompt,

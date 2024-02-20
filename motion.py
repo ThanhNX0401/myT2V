@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from torch.nn.functional import grid_sample
 
 
-
 def rearrange_3(tensor, f):
     F, D, C = tensor.size()
     return torch.reshape(tensor, (F // f, f, D, C))
@@ -17,21 +16,11 @@ def rearrange_4(tensor):
 def coords_grid(batch, ht, wd, device):
     # Adapted from https://github.com/princeton-vl/RAFT/blob/master/core/utils/utils.py
     coords = torch.meshgrid(torch.arange(ht, device=device), torch.arange(wd, device=device)) 
-    coords = torch.stack(coords[::-1], dim=0).float() # dimenson 0 = Wx, 1 = Hy
+    coords = torch.stack(coords[::-1], dim=0).float() 
 
     return coords[None].repeat(batch, 1, 1, 1) # (b, 2, h, w)
 
 def warp_single_latent(latent, reference_flow):
-    """
-    Warp latent of a single frame with given flow
-
-    Args:
-        latent: latent code of a single frame
-        reference_flow: flow which to warp the latent with
-
-    Returns:
-        warped: warped latent
-    """
     _, _, H, W = reference_flow.size()
     _, _, h, w = latent.size()
     coords0 = coords_grid(1, H, W, device=latent.device).to(latent.dtype) # (1, 2, H, W)
@@ -47,48 +36,20 @@ def warp_single_latent(latent, reference_flow):
     coords_t0 = torch.permute(coords_t0, (0, 2, 3, 1)) # (1, 64, 64, 2)
 
     warped = grid_sample(latent, coords_t0, mode="nearest", padding_mode="reflection") # (1, 4, 64, 64)
-    #warped = grid_sample(latent, coords_t0, mode="nearest", padding_mode="zeros") # (1, 4, 64, 64)
+    #warped = grid_sample(latent, coords_t0, mode="nearest", padding_mode="zeros")
     if (latent.size(1) == 1):
         warped = (warped > 0.5).to(latent.dtype)
     return warped
 
 
 def create_motion_field(motion_field_strength_x, motion_field_strength_y, device, dtype):
-    """
-    Create translation motion field
-
-    Args:
-        motion_field_strength_x: motion strength along x-axis
-        motion_field_strength_y: motion strength along y-axis
-        frame_ids: indexes of the frames the latents of which are being processed.
-            This is needed when we perform chunk-by-chunk inference
-        device: device
-        dtype: dtype
-
-    Returns:
-
-    """
-
     reference_flow = torch.zeros((1, 2, 512, 512), device=device, dtype=dtype)
     reference_flow[0, 0, :, :] = motion_field_strength_x
     reference_flow[0, 1, :, :] = motion_field_strength_y
-    return reference_flow #[7, 2, 512, 512], matrix of motion field_strength_x and y value
+    return reference_flow 
 
 
 def warp_latents(motion_field_strength_x, motion_field_strength_y, latents):
-    """
-    Creates translation motion and warps the latents accordingly
-
-    Args:
-        motion_field_strength_x: motion strength along x-axis
-        motion_field_strength_y: motion strength along y-axis
-        frame_ids: indexes of the frames the latents of which are being processed.
-            This is needed when we perform chunk-by-chunk inference
-        latents: latent codes of frames
-
-    Returns:
-        warped_latents: warped latents
-    """
     motion_field = create_motion_field(
         motion_field_strength_x=motion_field_strength_x,
         motion_field_strength_y=motion_field_strength_y,
