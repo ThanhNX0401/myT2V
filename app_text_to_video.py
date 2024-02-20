@@ -12,7 +12,7 @@ def process_text2video(prompt, negative_prompt, seed, guidance_scale, num_infere
                     negative_prompt=negative_prompt,
                     num_inference_steps=num_inference_steps,
                     guidance_scale=guidance_scale, 
-                    generator=torch.Generator('cuda').manual_seed(seed),
+                    generator = torch.Generator('cuda').manual_seed(seed) if seed >= 0 else torch.Generator('cuda').seed(),
                     video_length = video_length,
                     t0 = t0,
                     t1 = t1,
