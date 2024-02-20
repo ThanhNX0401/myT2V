@@ -233,8 +233,8 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         return_dict: bool = True,
         callback: Optional[Callable[[int, int, torch.FloatTensor], None]] = None,
         callback_steps: Optional[int] = 1,
-        t0: int = 44, 
-        t1: int = 47, 
+        t0: int = 21, 
+        t1: int = 27, 
         frame_ids: Optional[List[int]] = None,
     ):
         assert video_length > 0 #video_length = 8
@@ -328,8 +328,8 @@ class Pipeline(StableDiffusionPipeline): #ke thua Stable diffusionPipeline
         labels,Object_motion = get_label_and_motion(prompt[0])
 
         mask = get_mask(image,prompt[0],labels) #mask.shape = (512,512)
-        print(mask.shape, Object_motion)
-        print("test end")
+        # print(mask.shape, Object_motion)
+        # print("test end")
         
         motion_field_dict = {
             'left': [-15, 0], #object moving left, pixel motion field is left

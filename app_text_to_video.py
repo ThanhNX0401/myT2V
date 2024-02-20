@@ -12,7 +12,7 @@ def process_text2video(prompt, negative_prompt, seed, guidance_scale, num_infere
                     negative_prompt=negative_prompt,
                     num_inference_steps=num_inference_steps,
                     guidance_scale=guidance_scale, 
-                    generator = torch.Generator('cuda').manual_seed(seed) if seed >= 0 else torch.Generator('cuda').seed(),
+                    generator = torch.Generator('cuda').manual_seed(seed),
                     video_length = video_length,
                     t0 = t0,
                     t1 = t1,
@@ -47,7 +47,7 @@ def create_demo_text_to_video():
                             label="Video length",  minimum=1, maximum=16, step=1, value=4)
                     with gr.Group():
                         seed = gr.Slider(
-                            label="Seed", minimum=-1, maximum=100000, step=1, value=40
+                            label="Seed", minimum=0, maximum=100000, step=1, value=40
                         )
                     with gr.Group():
                         fps = gr.Slider(
